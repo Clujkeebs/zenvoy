@@ -1,5 +1,5 @@
 import PageHeader from '../ui/PageHeader'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Icon from '../../icons/Icon'
 import { PLANS } from '../../constants/plans'
 import { SERVICES } from '../../constants/services'
@@ -10,10 +10,31 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
   const [name,  setName]  = useState(user.name);
   const [svc,   setSvc]   = useState(user.svc||"web");
   const [saved, setSaved] = useState(false);
+  const [imgUrl, setImgUrl] = useState(user.profileImageUrl || null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
   const refLink = `${window.location.origin}${window.location.pathname}?ref=${user.refCode}`;
 
   const save = () => {
     const u={...user,name,svc}; DB.saveUser(user.email,u); onUpdate(u); setSaved(true); setTimeout(()=>setSaved(false),2000);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Image must be under 2MB"); return; }
+    setUploading(true);
+    try {
+      const url = await DB.saveProfileImage(user.email, file);
+      if (url) {
+        setImgUrl(url);
+        const u = { ...user, profileImageUrl: url };
+        onUpdate(u);
+      }
+    } catch (err) {
+      alert("Upload failed: " + err.message);
+    }
+    setUploading(false);
   };
 
   return (
@@ -35,6 +56,29 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
       <div className="card" style={{ padding:"19px 22px",marginBottom:12 }}>
         <div style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:14,marginBottom:13,display:"flex",gap:7,alignItems:"center" }}>
           <I n="users" s={15} c="var(--lime)"/>Profile
+        </div>
+        <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:16 }}>
+          <div onClick={() => fileRef.current?.click()} style={{
+            width:56,height:56,borderRadius:"50%",cursor:"pointer",overflow:"hidden",flexShrink:0,
+            background:imgUrl?"var(--s3)":"var(--s3)",display:"flex",alignItems:"center",justifyContent:"center",
+            border:"2.5px solid var(--brd)",transition:"border-color .15s",position:"relative",
+          }}>
+            {imgUrl ? (
+              <img src={imgUrl} alt="Profile" style={{ width:"100%",height:"100%",objectFit:"cover" }} />
+            ) : (
+              <span style={{ fontSize:22,fontWeight:900,color:"var(--txt2)" }}>{user.name?.charAt(0).toUpperCase()}</span>
+            )}
+            {uploading && <div style={{ position:"absolute",inset:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center" }}>
+              <div style={{ width:16,height:16,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin .7s linear infinite" }} />
+            </div>}
+          </div>
+          <div>
+            <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px" }} onClick={() => fileRef.current?.click()} disabled={uploading}>
+              <I n="up" s={12}/>{imgUrl ? "Change Photo" : "Upload Photo"}
+            </button>
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display:"none" }} onChange={handleImageUpload} />
+            <div style={{ fontSize:10,color:"var(--txt3)",marginTop:3 }}>JPG, PNG, or WebP. Max 2MB.</div>
+          </div>
         </div>
         <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(160px,100%),1fr))",gap:11,marginBottom:13 }}>
           <div><span className="lbl">Name</span><input className="inp" value={name} onChange={e=>setName(e.target.value)}/></div>

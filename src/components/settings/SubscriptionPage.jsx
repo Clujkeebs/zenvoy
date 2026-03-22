@@ -4,26 +4,55 @@ import Icon from '../../icons/Icon'
 import { PLANS, PLAN_ORDER, getScansLeft } from '../../constants/plans'
 import { startTrial, isTrialActive, getTrialDaysLeft } from '../../utils/trial'
 import { getFreeScansLeft, FREE_SCAN_LIMIT } from '../../utils/scanQuota'
+import { supabase } from '../../lib/supabase'
 import * as DB from '../../utils/db'
 const I = Icon
 
 export default function SubscriptionPage({ user, onUpdate, onNav }) {
   const [showEnterprise, setShowEnterprise] = useState(false)
+  const [loading, setLoading] = useState(null) // planId being loaded
 
-  const upgradePlan = (planId) => {
+  const upgradePlan = async (planId) => {
     const plan = PLANS[planId]
     if (!plan) return
     if (plan.contactOnly) { setShowEnterprise(true); return }
 
-    let u
-    if (planId === "pro" && plan.trialDays && !user.trialEnd) {
-      // Start Pro trial
-      u = startTrial(user)
-    } else {
-      u = { ...user, plan: planId, scansUsed: 0 }
+    // Free plan — just downgrade locally
+    if (planId === "free") {
+      const u = { ...user, plan: "free", scansUsed: 0 }
+      DB.saveUser(user.email, u)
+      onUpdate(u)
+      return
     }
-    DB.saveUser(user.email, u)
-    onUpdate(u)
+
+    // Paid plans — redirect to Stripe Checkout
+    setLoading(planId)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(
+        import.meta.env.VITE_SUPABASE_URL + "/functions/v1/stripe-checkout",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + session?.access_token,
+          },
+          body: JSON.stringify({
+            plan: planId,
+            return_url: window.location.origin + window.location.pathname,
+          }),
+        }
+      )
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url // redirect to Stripe
+      } else {
+        alert(data.error || "Could not start checkout. Try again.")
+      }
+    } catch (e) {
+      alert("Checkout error: " + e.message)
+    }
+    setLoading(null)
   }
 
   const currentPlan = user.plan || "free"
@@ -91,10 +120,11 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
               {pid === "pro" && !isCurrent && <div style={{ fontSize: 11, color: "var(--purple)", marginTop: 6, fontWeight: 600 }}>🎁 7-day free trial included</div>}
               <button className={"btn " + (isCurrent ? "btn-ghost" : p.best ? "btn-lime" : "btn-dark")}
                 style={{ marginTop: 11, width: "100%", justifyContent: "center", fontSize: 12, padding: "9px" }}
-                disabled={isCurrent} onClick={() => upgradePlan(pid)}>
-                {isCurrent ? "Current Plan ✓"
+                disabled={isCurrent || loading === pid} onClick={() => upgradePlan(pid)}>
+                {loading === pid ? "Redirecting to Stripe…"
+                  : isCurrent ? "Current Plan ✓"
                   : isContact ? "Contact Sales"
-                  : pid === "pro" && !user.trialEnd ? "Start 7-Day Free Trial"
+                  : pid === "pro" ? "Start 7-Day Free Trial"
                   : "Switch to " + p.name}
               </button>
             </div>

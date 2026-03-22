@@ -1,21 +1,27 @@
 import { BTYPE, SERVICES } from '../constants/services'
 import * as DB from './db'
+import { supabase } from '../lib/supabase'
 
-/* ── Core AI Call ────────────────────────────────────────── */
+/* ── Core AI Call (via Supabase Edge Function) ──────────── */
 const MAX_RETRIES = 2
 const RETRY_CODES = new Set([429, 503, 529])
 
+const AI_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/ai-proxy"
+
 export async function aiCall(prompt, maxTokens = 1000, attempt = 0) {
+  // Get session token for auth
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token || ""
+
   let res
   try {
-    res = await fetch("https://api.anthropic.com/v1/messages", {
+    res = await fetch(AI_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: maxTokens,
-        messages: [{ role: "user", content: prompt }],
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token,
+      },
+      body: JSON.stringify({ prompt, max_tokens: maxTokens }),
     })
   } catch (e) {
     if (e.name === "AbortError") throw new Error("Request cancelled.")
@@ -28,11 +34,11 @@ export async function aiCall(prompt, maxTokens = 1000, attempt = 0) {
       await new Promise(r => setTimeout(r, delay))
       return aiCall(prompt, maxTokens, attempt + 1)
     }
-    throw new Error(err?.error?.message || "API error " + res.status)
+    throw new Error(err?.error || "AI service error " + res.status)
   }
   const data = await res.json()
-  if (data.error) throw new Error(data.error.message)
-  return data.content?.[0]?.text || ""
+  if (data.error) throw new Error(data.error)
+  return data.text || ""
 }
 
 /* ── Lead Generation ────────────────────────────────────── */
