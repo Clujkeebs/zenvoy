@@ -1,4 +1,4 @@
-# Zenvoy v3 — Update Changelog
+# Zenvylo v3 — Update Changelog
 
 ## What Changed (Summary)
 
@@ -8,7 +8,7 @@
 - **6 plans now**: Free → Starter ($9) → Growth ($19) → Pro ($39) → Scale ($79) → Enterprise (contact only)
 - **Free plan**: 3 scans/month, resets on the 1st, tracked in `scanQuota.js`
 - **Pro trial**: 7-day trial, starts only when user picks Pro. Auto-downgrades to Free if expired
-- **Enterprise**: Opens a "contact support@zenvoy.com" page — no subscription or trial
+- **Enterprise**: Opens a "contact support@zenvylo.com" page — no subscription or trial
 - **Old trial logic removed**: `isTrialActive` and `trialDaysLeft` moved from `constants/plans.js` to dedicated `utils/trial.js`
 
 ### New Files Created
@@ -22,12 +22,12 @@
 | `src/components/ui/PasswordInput.jsx` | Password field with show/hide toggle |
 | `src/components/ui/RoleBadge.jsx` | Crown/shield icons next to admin/mod usernames |
 | `src/components/ui/Avatar.jsx` | Profile image with fallback initials, plan-colored background |
-| `src/components/pages/EnterprisePage.jsx` | "Contact support@zenvoy.com" page |
+| `src/components/pages/EnterprisePage.jsx` | "Contact support@zenvylo.com" page |
 | `src/components/pages/SupportPage.jsx` | Support email + 10-question FAQ |
 | `src/components/community/ReportModal.jsx` | Report messages/users with 6 preset reasons + detail field |
 | `src/components/community/HoverCard.jsx` | Hover over usernames → shows avatar, role, plan, join date, report button |
 | `src/components/admin/AdminDashboard.jsx` | Full admin panel: user list, role management, ban, reports |
-| `public/favicon.ico` | Zenvoy target icon, lime on dark, multi-size ICO |
+| `public/favicon.ico` | Zenvylo target icon, lime on dark, multi-size ICO |
 | `public/icon-192.png` | 192px PNG for web manifest / Apple touch |
 | `supabase-schema-v2.sql` | Updated schema: role, banned, profile_image_url, reports table, RLS |
 
@@ -59,7 +59,7 @@
 1. Run `supabase-schema-v2.sql` in Supabase SQL Editor
 2. Create a storage bucket called `avatars` (public)
 3. Replace `src/utils/db.js` function bodies with Supabase queries (exports stay the same)
-4. Replace `admin@zenvoy.com` in `src/utils/roles.js` with your real email
+4. Replace `admin@zenvylo.com` in `src/utils/roles.js` with your real email
 
 ### Profile Images
 Currently stored as base64 in localStorage (works for testing). For production:

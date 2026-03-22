@@ -3,7 +3,7 @@ import Icon from '../../icons/Icon'
 const I = Icon
 
 const ONBOARD_STEPS = [
-  { icon:"target", title:"Welcome to Zenvoy!", body:"You're about to discover businesses that desperately need your services. Here's a quick walkthrough to get you scanning in 60 seconds." },
+  { icon:"target", title:"Welcome to Zenvylo!", body:"You're about to discover businesses that desperately need your services. Here's a quick walkthrough to get you scanning in 60 seconds." },
   { icon:"search", title:"How Scans Work", body:"Each scan searches a location for businesses with problems you can solve. Our AI scores each lead 0–100 based on opportunity size, demand, and competition." },
   { icon:"filter", title:"Smart Filters", body:"Filter leads by status, sort by score or value, save your best prospects, and set follow-up reminders so nothing falls through the cracks." },
   { icon:"zap", title:"Scan Limits", body:"Your plan sets how many scans you get per month. Starter gets 5 leads per scan, Pro gets 10, and Scale gets 25. Upgrade anytime in Settings." },

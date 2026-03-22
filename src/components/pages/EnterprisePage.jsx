@@ -1,8 +1,11 @@
+import PageHeader from '../ui/PageHeader'
 import Icon from '../../icons/Icon'
 
-export default function EnterprisePage() {
+export default function EnterprisePage({ onNav }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "100px 24px", textAlign: "center", minHeight: "60vh" }}>
+    <div>
+      <PageHeader title="Enterprise" onBack={() => onNav("home")} onHome={() => onNav("home")} />
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 24px", textAlign: "center" }}>
       <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(245,166,35,.1)", border: "2px solid rgba(245,166,35,.25)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
         <Icon n="briefcase" s={32} c="var(--amber)" />
       </div>
@@ -13,11 +16,12 @@ export default function EnterprisePage() {
       </p>
       <div style={{ background: "var(--s2)", border: "1.5px solid var(--brd)", borderRadius: 12, padding: "20px 28px", marginBottom: 24 }}>
         <div style={{ fontSize: 13, color: "var(--txt3)", marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em" }}>Get in touch</div>
-        <a href="mailto:support@zenvoy.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
-          support@zenvoy.com
+        <a href="mailto:support@zenvylo.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
+          support@zenvylo.com
         </a>
       </div>
       <p style={{ fontSize: 12, color: "var(--txt3)" }}>We typically respond within 24 hours.</p>
+      </div>
     </div>
   )
 }

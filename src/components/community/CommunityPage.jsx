@@ -1,3 +1,4 @@
+import PageHeader from '../ui/PageHeader'
 import { useState, useEffect, useRef } from 'react'
 import Icon from '../../icons/Icon'
 import { SEED_GROUPS } from '../../constants/community'
@@ -6,7 +7,7 @@ import { timeAgo } from '../../utils/helpers'
 import * as DB from '../../utils/db'
 const I = Icon
 
-export default function CommunityPage({ user, onGoSettings }) {
+export default function CommunityPage({ user, onGoSettings, onNav }) {
   const [posts,       setPosts]       = useState([]);
   const [groups,      setGroups]      = useState([]);
   const [myGroupIds,  setMyGroupIds]  = useState([]);
@@ -15,7 +16,7 @@ export default function CommunityPage({ user, onGoSettings }) {
   const [showCreate,  setShowCreate]  = useState(false);
   const [activeGroup, setActiveGroup] = useState(null);
   const [newPost,     setNewPost]     = useState({type:"general",title:"",content:""});
-  const [newGroup,    setNewGroup]    = useState({name:"",desc:"",private:false});
+  const [newGroup,    setNewGroup]    = useState({name:"",description:"",private:false});
   const [groupFeed,   setGroupFeed]   = useState([]);
   const [groupPost,   setGroupPost]   = useState({title:"",content:""});
   const [showGPost,   setShowGPost]   = useState(false);
@@ -35,9 +36,17 @@ export default function CommunityPage({ user, onGoSettings }) {
   ];
 
   useEffect(()=>{
-    setPosts(DB.posts());
-    setGroups(DB.groups());
-    setMyGroupIds(DB.myGroups(user.email));
+    async function load() {
+      const [p, g, mg] = await Promise.all([
+        DB.getPosts(),
+        DB.getGroups(),
+        DB.getMyGroups(user.email),
+      ]);
+      setPosts(p);
+      setGroups(g);
+      setMyGroupIds(mg);
+    }
+    load();
   },[]);
 
   const filtered = filter==="all" ? posts : posts.filter(p=>p.type===filter);
@@ -47,9 +56,11 @@ export default function CommunityPage({ user, onGoSettings }) {
     const updated = posts.map(p=>{
       if(p.id!==postId) return p;
       const already = p.upvotes.includes(user.email);
-      return {...p, upvotes: already ? p.upvotes.filter(u=>u!==user.email) : [...p.upvotes, user.email]};
+      const newPost = {...p, upvotes: already ? p.upvotes.filter(u=>u!==user.email) : [...p.upvotes, user.email]};
+      DB.updatePost(newPost); // fire-and-forget
+      return newPost;
     });
-    setPosts(updated); DB.savePosts(updated);
+    setPosts(updated);
   };
 
   const submitPost = () => {
@@ -71,9 +82,11 @@ export default function CommunityPage({ user, onGoSettings }) {
     const updated = posts.map(p=>{
       if(p.id!==postId) return p;
       const c = {id:'c_'+Date.now(), author:user.name, authorEmail:user.email, text, createdAt:Date.now()};
-      return {...p, comments:[...p.comments, c]};
+      const newPost = {...p, comments:[...p.comments, c]};
+      DB.updatePost(newPost); // fire-and-forget
+      return newPost;
     });
-    setPosts(updated); DB.savePosts(updated);
+    setPosts(updated);
     setCommentDraft(d=>({...d,[postId]:''}));
   };
 
@@ -88,9 +101,10 @@ export default function CommunityPage({ user, onGoSettings }) {
     const updated=myGroupIds.filter(x=>x!==gid); setMyGroupIds(updated); DB.saveMyGroups(user.email, updated);
   };
 
-  const openGroup = (g) => {
+  const openGroup = async (g) => {
     setActiveGroup(g);
-    setGroupFeed(DB.groupFeed(g.id));
+    const feed = await DB.getGroupFeed(g.id);
+    setGroupFeed(feed);
   };
 
   const submitGroupPost = () => {
@@ -126,7 +140,7 @@ export default function CommunityPage({ user, onGoSettings }) {
           </div>
           <div>
             <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:22,wordBreak:"break-word",overflowWrap:"break-word" }}>{activeGroup.name}</h2>
-            <p style={{ color:"var(--txt2)",fontSize:13,marginTop:2 }}>{activeGroup.desc} · {activeGroup.memberCount+(myGroupIds.includes(activeGroup.id)?1:0)} members</p>
+            <p style={{ color:"var(--txt2)",fontSize:13,marginTop:2 }}>{activeGroup.description} · {activeGroup.memberCount+(myGroupIds.includes(activeGroup.id)?1:0)} members</p>
           </div>
         </div>
         <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
@@ -197,7 +211,7 @@ export default function CommunityPage({ user, onGoSettings }) {
     <div style={{overflowX:"hidden",minWidth:0}}>
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10 }}>
         <div>
-          <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(18px,3vw,24px)",wordBreak:"break-word" }}>Community</h2>
+          <PageHeader title="Community" onBack={() => onNav("home")} onHome={() => onNav("home")} />
           <p style={{ color:"var(--txt2)",fontSize:14,marginTop:4 }}>Share wins, discover opportunities, and connect with other freelancers.</p>
         </div>
         <div style={{ display:"flex",gap:8 }}>
@@ -447,7 +461,7 @@ export default function CommunityPage({ user, onGoSettings }) {
               </div>
               <div style={{ marginBottom:13 }}>
                 <span className="lbl">Description</span>
-                <input className="inp" placeholder="What is this group for?" value={newGroup.desc} onChange={e=>setNewGroup({...newGroup,desc:e.target.value})}/>
+                <input className="inp" placeholder="What is this group for?" value={newGroup.description} onChange={e=>setNewGroup({...newGroup,description:e.target.value})}/>
               </div>
               <div style={{ display:"flex",alignItems:"center",gap:9,padding:"10px 13px",background:"var(--s2)",borderRadius:9,border:"1.5px solid var(--brd)",marginBottom:16,cursor:"pointer" }}
                 onClick={()=>setNewGroup({...newGroup,private:!newGroup.private})}>
@@ -461,10 +475,10 @@ export default function CommunityPage({ user, onGoSettings }) {
               </div>
               <div style={{ display:"flex",gap:8 }}>
                 <button className="btn btn-lime" disabled={!newGroup.name} onClick={()=>{
-                  const g={id:"g_"+Date.now(),name:newGroup.name,desc:newGroup.desc,ownerId:user.email,ownerName:user.name,memberCount:1,private:newGroup.private,color:"var(--lime)",createdAt:Date.now()};
+                  const g={id:"g_"+Date.now(),name:newGroup.name,description:newGroup.description,ownerId:user.email,ownerName:user.name,memberCount:1,private:newGroup.private,color:"var(--lime)",createdAt:Date.now()};
                   const updGroups=[...groups,g]; setGroups(updGroups); DB.saveGroups(updGroups);
                   const updMine=[...myGroupIds,g.id]; setMyGroupIds(updMine); DB.saveMyGroups(user.email,updMine);
-                  setNewGroup({name:"",desc:"",private:false}); setShowCreate(false);
+                  setNewGroup({name:"",description:"",private:false}); setShowCreate(false);
                 }}><I n="check" s={14}/>Create Group</button>
                 <button className="btn btn-ghost" onClick={()=>setShowCreate(false)}>Cancel</button>
               </div>

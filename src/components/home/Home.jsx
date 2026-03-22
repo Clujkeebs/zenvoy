@@ -2,7 +2,7 @@ import Icon from '../../icons/Icon'
 import { PLANS, getScansLeft, getScansLimit } from '../../constants/plans'
 import { fmtMoney, fmtDate } from '../../utils/helpers'
 import { STATUS_COLORS } from '../../constants/services'
-import { isTrialActive } from '../../utils/trial'
+import { isTrialActive, getTrialDaysLeft } from '../../utils/trial'
 const I = Icon
 
 export default function Home({ user, leads, clients, onSearch, onNav }) {
@@ -28,7 +28,7 @@ export default function Home({ user, leads, clients, onSearch, onNav }) {
           </h1>
           <p style={{ color:"var(--txt2)",fontSize:14,marginTop:4 }}>
             {plan.name} plan · {scansLeft} scan{scansLeft!==1?"s":""} left this month
-            {onTrial && <span style={{ marginLeft:8,color:"var(--purple)",fontWeight:700 }}>· Trial: {trialDaysLeft(user)} days left</span>}
+            {onTrial && <span style={{ marginLeft:8,color:"var(--purple)",fontWeight:700 }}>· Trial: {getTrialDaysLeft(user)} days left</span>}
           </p>
         </div>
         <button className="btn btn-lime" style={{ fontSize:15,padding:"12px 24px" }} onClick={onSearch}>
@@ -40,7 +40,7 @@ export default function Home({ user, leads, clients, onSearch, onNav }) {
         <div className="trial-banner fu" style={{ marginBottom:16 }}>
           <I n="crown" s={16} c="var(--purple)"/>
           <span style={{ color:"var(--txt)",fontWeight:600 }}>Pro Trial Active</span>
-          <span style={{ color:"var(--txt2)" }}> — {trialDaysLeft(user)} days left. Full access to AI tools and all countries.</span>
+          <span style={{ color:"var(--txt2)" }}> — {getTrialDaysLeft(user)} days left. Full access to AI tools and all countries.</span>
           <button className="btn btn-ghost" style={{ marginLeft:"auto",fontSize:12,padding:"4px 10px" }} onClick={()=>onNav("settings")}>
             Upgrade to keep access →
           </button>

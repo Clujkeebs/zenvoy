@@ -21,7 +21,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
   const [busy,     setBusy]     = useState(false)
   const [step,     setStep]     = useState(1)
 
-  const go = () => {
+  const go = async () => {
     setErr("")
     if (!email || !pass) return setErr("Fill in all fields.")
     if (mode === "signup") {
@@ -31,40 +31,45 @@ export default function Auth({ onAuth, initialMode = "login" }) {
       if (pass !== pass2) return setErr("Passwords do not match.")
     }
     setBusy(true)
-    setTimeout(() => {
+    try {
       if (mode === "login") {
-        const u = DB.getUser(email)
-        if (!u) { setErr("No account found. Sign up first."); return setBusy(false) }
-        if (u.pass !== pass) { setErr("Wrong password."); return setBusy(false) }
-        if (u.banned) { setErr("This account has been suspended."); return setBusy(false) }
-        DB.setSession(email)
+        await DB.signIn({ email, password: pass })
+        const u = await DB.getUser(email)
+        if (!u) { setErr("Profile not found."); setBusy(false); return }
+        if (u.banned) { setErr("This account has been suspended."); setBusy(false); return }
         onAuth(u)
       } else {
-        if (DB.getUser(email)) { setErr("Email already registered."); return setBusy(false) }
-        const rc = mkRefCode(email)
-        let bonus = 0
+        // Handle referral bonus
         if (refCode) {
-          const refUser = DB.findUserByRef(refCode)
+          const refUser = await DB.findUserByRef(refCode)
           if (refUser && refUser.email !== email) {
             const updated = { ...refUser, scansUsed: Math.max(0, (refUser.scansUsed || 0) - 10), referrals: (refUser.referrals || 0) + 1 }
-            DB.saveUser(refUser.email, updated)
-            bonus = 3
+            DB.saveUser(refUser.email, updated) // fire-and-forget
           }
         }
-        const u = {
-          name, email, pass, country, svc, currency: currency || "USD",
-          plan: "free", scansUsed: 0, bonusScans: bonus,
-          refCode: rc, referrals: 0,
+        await DB.signUp({
+          email,
+          password: pass,
+          name,
+          country,
+          svc,
+          currency: currency || "USD",
           role: getDefaultRole(email),
-          profileImageUrl: null,
-          joinedAt: Date.now(), onboarded: false,
+        })
+        // Wait a moment for the trigger to create the profile
+        await new Promise(r => setTimeout(r, 1000))
+        const u = await DB.getUser(email)
+        if (u) {
+          onAuth(u)
+        } else {
+          // Profile not created yet — check email for confirmation
+          setErr("Check your email to confirm your account, then sign in.")
         }
-        DB.saveUser(email, u)
-        DB.setSession(email)
-        onAuth(u)
       }
-      setBusy(false)
-    }, 500)
+    } catch (e) {
+      setErr(e.message || "Something went wrong.")
+    }
+    setBusy(false)
   }
 
   const gridBg = {
@@ -80,12 +85,11 @@ export default function Auth({ onAuth, initialMode = "login" }) {
       <div style={{ width: "100%", maxWidth: 440 }}>
         <div className="fu" style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <div style={{ width: 44, height: 44, background: "var(--lime)", borderRadius: 12,
-              display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 44, height: 44, background: "var(--lime)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <I n="target" s={24} c="#0c0e13" />
             </div>
             <span style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 26, letterSpacing: "-.03em" }}>
-              Zen<span style={{ color: "var(--lime)" }}>voy</span>
+              Zen<span style={{ color: "var(--lime)" }}>vylo</span>
             </span>
           </div>
           <p style={{ color: "var(--txt2)", fontSize: 14 }}>Find clients. Close deals. Grow your business.</p>
@@ -128,7 +132,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
                 </div>
                 <div style={{ marginBottom: 13 }}>
                   <span className="lbl">Password</span>
-                  <PasswordInput value={pass} onChange={e => setPass(e.target.value)} placeholder="Create a password (min 6 chars)" />
+                  <PasswordInput value={pass} onChange={e => setPass(e.target.value)} placeholder="Min 6 characters" />
                 </div>
                 <div style={{ marginBottom: 13 }}>
                   <span className="lbl">Confirm Password</span>
@@ -172,7 +176,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   <span className="lbl">Referral Code (optional)</span>
-                  <input className="inp" placeholder="ZV-XXXX-XXXX" value={refCode} onChange={e => setRefCode(e.target.value.toUpperCase())} />
+                  <input className="inp" placeholder="ZL-XXXX-XXXX" value={refCode} onChange={e => setRefCode(e.target.value.toUpperCase())} />
                 </div>
               </>
             )
@@ -184,16 +188,17 @@ export default function Auth({ onAuth, initialMode = "login" }) {
             <I n="alert" s={13} />{err}
           </div>}
 
-          {(mode === "login" || (mode === "signup" && step === 2)) && <button className="btn btn-lime"
-            style={{ width: "100%", justifyContent: "center", padding: "12px" }} onClick={go} disabled={busy}>
-            {busy && <span style={{ width: 16, height: 16, border: "2.5px solid rgba(0,0,0,.2)", borderTopColor: "#000",
-              borderRadius: "50%", animation: "spin .7s linear infinite", display: "inline-block" }} />}
-            {busy ? "Please wait…" : mode === "login" ? "Sign In" : "Create Free Account"}
-          </button>}
+          {(mode === "login" || (mode === "signup" && step === 2)) && (
+            <button className="btn btn-lime" style={{ width: "100%", justifyContent: "center", padding: "12px" }} onClick={go} disabled={busy}>
+              {busy && <span style={{ width: 16, height: 16, border: "2.5px solid rgba(0,0,0,.2)", borderTopColor: "#000", borderRadius: "50%", animation: "spin .7s linear infinite", display: "inline-block" }} />}
+              {busy ? "Please wait…" : mode === "login" ? "Sign In" : "Create Free Account"}
+            </button>
+          )}
 
-          {mode === "signup" && step === 2 && <button style={{ width: "100%", marginTop: 10, padding: "8px",
-            color: "var(--txt3)", fontSize: 12, cursor: "pointer", background: "none", border: "none" }}
-            onClick={() => setStep(1)}>← Back</button>}
+          {mode === "signup" && step === 2 && (
+            <button style={{ width: "100%", marginTop: 10, padding: "8px", color: "var(--txt3)", fontSize: 12, cursor: "pointer", background: "none", border: "none" }}
+              onClick={() => setStep(1)}>← Back</button>
+          )}
         </div>
         <p style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "var(--txt3)" }}>
           Free forever: 3 scans/month · No credit card needed

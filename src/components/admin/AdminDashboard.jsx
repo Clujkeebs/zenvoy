@@ -1,3 +1,4 @@
+import PageHeader from '../ui/PageHeader'
 import { useState, useEffect } from 'react'
 import Icon from '../../icons/Icon'
 import Avatar from '../ui/Avatar'
@@ -8,15 +9,19 @@ import { fmtDate } from '../../utils/helpers'
 import * as DB from '../../utils/db'
 const I = Icon
 
-export default function AdminDashboard({ user }) {
+export default function AdminDashboard({ user, onNav }) {
   const [tab, setTab] = useState("users")
   const [users, setUsers] = useState([])
   const [reports, setReports] = useState([])
   const [search, setSearch] = useState("")
 
   useEffect(() => {
-    setUsers(DB.getAllUsers())
-    setReports(DB.getReports())
+    async function load() {
+      const [u, r] = await Promise.all([DB.getAllUsers(), DB.getReports()])
+      setUsers(u)
+      setReports(r)
+    }
+    load()
   }, [])
 
   if (!isAdmin(user)) {
@@ -36,32 +41,25 @@ export default function AdminDashboard({ user }) {
 
   const pendingReports = reports.filter(r => r.status === "pending")
 
-  const setRole = (email, role) => {
-    const u = DB.getUser(email)
-    if (!u) return
-    const updated = { ...u, role }
-    DB.saveUser(email, updated)
-    setUsers(DB.getAllUsers())
+  const setRole = async (email, role) => {
+    // Update in state immediately
+    setUsers(prev => prev.map(u => u.email === email ? { ...u, role } : u))
+    // Sync to Supabase in background
+    DB.saveUser(email, { role })
   }
 
-  const banUser = (email) => {
-    const u = DB.getUser(email)
-    if (!u) return
-    const updated = { ...u, banned: true, role: "user" }
-    DB.saveUser(email, updated)
-    setUsers(DB.getAllUsers())
+  const banUser = async (email) => {
+    setUsers(prev => prev.map(u => u.email === email ? { ...u, banned: true, role: "user" } : u))
+    DB.saveUser(email, { banned: true, role: "user" })
   }
 
   const resolveReport = (idx) => {
+    const report = reports[idx]
+    if (!report) return
     const updated = [...reports]
     updated[idx] = { ...updated[idx], status: "resolved", resolvedAt: Date.now() }
     setReports(updated)
-    // Save back (in Supabase this would be an update query)
-    const all = DB.getReports()
-    if (all[idx]) {
-      all[idx] = updated[idx]
-      localStorage.setItem("oh6_reports", JSON.stringify(all))
-    }
+    if (report.id) DB.resolveReport(report.id) // fire-and-forget
   }
 
   const TABS = [
@@ -71,14 +69,7 @@ export default function AdminDashboard({ user }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 22, display: "flex", alignItems: "center", gap: 8 }}>
-          <I n="shield2" s={20} c="var(--amber)" /> Admin Dashboard
-        </h1>
-        <p style={{ color: "var(--txt2)", fontSize: 13, marginTop: 4 }}>
-          {users.length} users · {pendingReports.length} pending reports
-        </p>
-      </div>
+      <PageHeader title="Admin Dashboard" subtitle={users.length + " users · " + pendingReports.length + " pending reports"} onBack={() => onNav("home")} onHome={() => onNav("home")} />
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 18 }}>

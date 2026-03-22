@@ -1,10 +1,11 @@
+import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
 import { fmtDate, fmtMoney } from '../../utils/helpers'
 import { STATUS_COLORS } from '../../constants/services'
 const I = Icon
 
-export default function ClientsPage({ clients, leads, onAdd, onUpdate, onDelete }) {
+export default function ClientsPage({ clients, leads, onAdd, onUpdate, onDelete, onNav }) {
   const [modal,      setModal]      = useState(false);
   const [editId,     setEditId]     = useState(null);
   const [q,          setQ]          = useState("");
@@ -29,7 +30,7 @@ export default function ClientsPage({ clients, leads, onAdd, onUpdate, onDelete 
     <div style={{overflowX:"hidden",minWidth:0}}>
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10 }}>
         <div>
-          <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(18px,3vw,24px)",wordBreak:"break-word" }}>Clients</h2>
+          <PageHeader title="Clients" onBack={() => onNav("home")} onHome={() => onNav("home")} />
           <p style={{ color:"var(--txt2)",fontSize:13,marginTop:2 }}>{clients.length} total · <span style={{ color:"var(--green)",fontWeight:700 }}>${mrr.toLocaleString()}/mo MRR</span></p>
         </div>
         <div style={{ display:"flex",gap:7 }}>

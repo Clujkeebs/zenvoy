@@ -1,3 +1,4 @@
+import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
 import { canAI, canScale } from '../../constants/plans'
@@ -5,7 +6,7 @@ import { aiCall } from '../../utils/ai'
 import { SERVICES, COUNTRIES } from '../../constants/services'
 const I = Icon
 
-export default function ToolsPage({ user, onUpgrade }) {
+export default function ToolsPage({ user, onUpgrade, onNav }) {
   const [activeSection, setActiveSection] = useState("directory");
   const [invoiceData, setInvoiceData] = useState({client:"",service:"",amount:"",hours:"",currency:"USD",notes:""});
   const [invoiceOut, setInvoiceOut] = useState(""); const [invoiceBusy, setInvoiceBusy] = useState(false);
@@ -104,7 +105,7 @@ export default function ToolsPage({ user, onUpgrade }) {
   return (
     <div style={{overflowX:"hidden",minWidth:0}}>
       <div style={{ marginBottom:20 }}>
-        <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(18px,3vw,24px)",wordBreak:"break-word" }}>Business Tools</h2>
+        <PageHeader title="Business Tools" onBack={() => onNav("home")} onHome={() => onNav("home")} />
         <p style={{ color:"var(--txt2)",fontSize:14,marginTop:6 }}>AI-powered tools + curated resource directory to run your freelance business.</p>
       </div>
 

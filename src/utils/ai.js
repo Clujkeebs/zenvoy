@@ -39,7 +39,7 @@ export async function aiCall(prompt, maxTokens = 1000, attempt = 0) {
 export async function generateLeads({ service, country, city, existingNames, lowBudget, count = 5 }) {
   const svc = SERVICES.find(s => s.id === service)
   const loc = city ? city + ", " + country : country
-  const globalNames = DB.getGlobalNames()
+  const globalNames = await DB.getGlobalNames()
   const allAvoid = [...new Set([...existingNames, ...globalNames])].slice(-20).join(", ") || "none"
   const budgetNote = lowBudget ? " setupCost must be under $500." : ""
 
@@ -107,7 +107,7 @@ Rules: opportunityScore 0-100 (higher=better lead), demandScore 0-100 (market de
       difficultyRating: b.difficultyRating || "medium",
       marketSaturation: b.marketSaturation || "competitive",
       country, city: city || "", serviceId: service, serviceLabel: svc.label,
-      status: "new", saved: false, notes: "", followUpDate: "", addedAt: Date.now(),
+      status: "new", saved: false, notes: "", followUpDate: null,
     }
   })
 

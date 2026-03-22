@@ -1,9 +1,10 @@
+import PageHeader from '../ui/PageHeader'
 import Icon from '../../icons/Icon'
 import { STATUS_COLORS, SERVICES } from '../../constants/services'
 import { fmtMoney } from '../../utils/helpers'
 const I = Icon
 
-export default function AnalyticsPage({ leads, clients }) {
+export default function AnalyticsPage({ leads, clients, onNav }) {
   if(leads.length===0) return (
     <div style={{ textAlign:"center",padding:"100px 20px",color:"var(--txt2)" }}>
       <I n="bar" s={44}/><p style={{ marginTop:16,fontSize:15 }}>Run searches to unlock analytics.</p>
@@ -36,7 +37,7 @@ export default function AnalyticsPage({ leads, clients }) {
 
   return (
     <div style={{overflowX:"hidden",minWidth:0}}>
-      <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(18px,3vw,24px)",marginBottom:20,wordBreak:"break-word" }}>Analytics</h2>
+      <PageHeader title="Analytics" onBack={() => onNav("home")} onHome={() => onNav("home")} />
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(135px,1fr))",gap:10,marginBottom:18 }}>
         {[
           {l:"Potential MRR",v:"$"+totalMRR.toLocaleString(),c:"var(--lime)"},

@@ -1,3 +1,4 @@
+import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
 const I = Icon
@@ -11,24 +12,24 @@ const FAQ = [
   { q: "How do I change my password or email?", a: "Go to Settings → Profile to update your name and service. Email changes require contacting support. Password reset is available from the login screen." },
   { q: "What does the opportunity score mean?", a: "Each lead gets a 0–100 score based on how much they need your service. Scores above 75 are high-priority leads — businesses with real, fixable problems like no website, slow speeds, or few reviews." },
   { q: "How is billing handled?", a: "We use Stripe for all payments. Your card is charged monthly on the day you subscribed. You can update payment info or cancel from the Stripe customer portal via Settings." },
-  { q: "What's the Enterprise plan?", a: "Enterprise is for teams and agencies that need custom limits, dedicated support, and SLAs. Contact support@zenvoy.com to discuss pricing." },
+  { q: "What's the Enterprise plan?", a: "Enterprise is for teams and agencies that need custom limits, dedicated support, and SLAs. Contact support@zenvylo.com to discuss pricing." },
   { q: "My scan failed — what do I do?", a: "AI scans occasionally fail due to network issues or API load. Try again — it usually works on the second attempt. If it keeps failing, check your internet connection or contact support." },
 ]
 
-export default function SupportPage() {
+export default function SupportPage({ onNav }) {
   const [open, setOpen] = useState(null)
 
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 4px" }}>
+      <PageHeader title="Support" onBack={() => onNav("home")} onHome={() => onNav("home")} />
       <div style={{ textAlign: "center", marginBottom: 36 }}>
         <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(61,142,248,.1)", border: "2px solid rgba(61,142,248,.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <I n="info" s={26} c="var(--blue)" />
         </div>
-        <h1 style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 26, marginBottom: 8 }}>Support</h1>
         <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.7 }}>
           Need help? Email us at{" "}
-          <a href="mailto:support@zenvoy.com" style={{ color: "var(--blue)", fontWeight: 700, textDecoration: "none" }}>
-            support@zenvoy.com
+          <a href="mailto:support@zenvylo.com" style={{ color: "var(--blue)", fontWeight: 700, textDecoration: "none" }}>
+            support@zenvylo.com
           </a>
         </p>
       </div>

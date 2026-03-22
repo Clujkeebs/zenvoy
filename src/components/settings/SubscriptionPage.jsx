@@ -1,3 +1,4 @@
+import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
 import { PLANS, PLAN_ORDER, getScansLeft } from '../../constants/plans'
@@ -6,7 +7,7 @@ import { getFreeScansLeft, FREE_SCAN_LIMIT } from '../../utils/scanQuota'
 import * as DB from '../../utils/db'
 const I = Icon
 
-export default function SubscriptionPage({ user, onUpdate }) {
+export default function SubscriptionPage({ user, onUpdate, onNav }) {
   const [showEnterprise, setShowEnterprise] = useState(false)
 
   const upgradePlan = (planId) => {
@@ -41,8 +42,8 @@ export default function SubscriptionPage({ user, onUpdate }) {
         <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
           For enterprise access, contact us at
         </p>
-        <a href="mailto:support@zenvoy.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
-          support@zenvoy.com
+        <a href="mailto:support@zenvylo.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
+          support@zenvylo.com
         </a>
         <div style={{ marginTop: 24 }}>
           <button className="btn btn-ghost" onClick={() => setShowEnterprise(false)}>
@@ -55,9 +56,7 @@ export default function SubscriptionPage({ user, onUpdate }) {
 
   return (
     <div style={{ overflowX: "hidden", minWidth: 0 }}>
-      <h2 style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: "clamp(18px,3vw,24px)", marginBottom: 4 }}>
-        Subscription
-      </h2>
+      <PageHeader title="Subscription" onBack={() => onNav("home")} onHome={() => onNav("home")} />
       <p style={{ color: "var(--txt2)", fontSize: 13, marginBottom: 20 }}>
         You're on <strong style={{ color: PLANS[currentPlan]?.color || "var(--txt)" }}>{PLANS[currentPlan]?.name || "Free"}</strong>
         {trialActive && <span style={{ color: "var(--purple)", fontWeight: 700 }}> — Trial: {trialDays} days left</span>}

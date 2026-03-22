@@ -1,36 +1,30 @@
+import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
-import { PLANS, SERVICES, CURRENCIES } from '../../constants'
+import { PLANS } from '../../constants/plans'
+import { SERVICES } from '../../constants/services'
 import * as DB from '../../utils/db'
 const I = Icon
 
-export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscription }) {
+export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscription, onNav }) {
   const [name,  setName]  = useState(user.name);
   const [svc,   setSvc]   = useState(user.svc||"web");
   const [saved, setSaved] = useState(false);
   const refLink = `${window.location.origin}${window.location.pathname}?ref=${user.refCode}`;
-  const currSym = getCurrSym(user);
 
   const save = () => {
     const u={...user,name,svc}; DB.saveUser(user.email,u); onUpdate(u); setSaved(true); setTimeout(()=>setSaved(false),2000);
   };
-  const upgradePlan = p => {
-    const plan=PLANS[p];
-    const trialEnd=plan.trial?Date.now()+plan.trialDays*86400000:undefined;
-    const u={...user,plan:p,scansUsed:0,...(trialEnd?{trialEnd}:{})};
-    DB.saveUser(user.email,u); onUpdate(u);
-  };
-  const currentPlan=user.plan||"starter";
 
   return (
     <div style={{ maxWidth:700 }}>
-      <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(18px,3vw,24px)",marginBottom:20,wordBreak:"break-word" }}>Settings</h2>
+      <PageHeader title="Settings" onBack={() => onNav("home")} onHome={() => onNav("home")} />
 
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",
         background:"var(--s2)",borderRadius:9,border:"1.5px solid var(--brd)",marginBottom:16 }}>
         <div style={{ fontSize:13,color:"var(--txt2)" }}>
-          Current plan: <strong style={{ color:PLANS[user.plan||"starter"]?.color||"var(--txt)" }}>
-            {PLANS[user.plan||"starter"]?.name}
+          Current plan: <strong style={{ color:PLANS[user.plan||"free"]?.color||"var(--txt)" }}>
+            {PLANS[user.plan||"free"]?.name || "Free"}
           </strong>
         </div>
         <button className="btn btn-lime" style={{ fontSize:12,padding:"7px 14px" }} onClick={onGoSubscription}>

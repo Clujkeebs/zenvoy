@@ -1,15 +1,9 @@
 -- ============================================================
--- ZENVOY v2 — Updated Database Schema
--- Run this AFTER the base schema, or as a fresh install
+-- ZENVOY v3.2 — Complete Database Schema
+-- Paste this entire file into Supabase → SQL Editor → Run
 -- ============================================================
 
--- ─── Update profiles table with new fields ─────────────
--- If running on existing DB, use ALTER TABLE instead:
--- ALTER TABLE profiles ADD COLUMN role TEXT DEFAULT 'user';
--- ALTER TABLE profiles ADD COLUMN profile_image_url TEXT;
--- ALTER TABLE profiles ADD COLUMN banned BOOLEAN DEFAULT FALSE;
-
--- Fresh install: full profiles table
+-- ─── 1. PROFILES ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -33,7 +27,119 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ─── Reports table (community moderation) ──────────────
+-- ─── 2. LEADS ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  btype TEXT,
+  address TEXT,
+  phone TEXT,
+  website TEXT,
+  rating NUMERIC(3,1),
+  reviews INTEGER,
+  speed INTEGER,
+  ssl BOOLEAN DEFAULT FALSE,
+  employees TEXT,
+  founded INTEGER,
+  problems TEXT[],
+  why TEXT,
+  score INTEGER,
+  suggested_monthly_rate INTEGER,
+  my_monthly_rate INTEGER,
+  tools_cost_monthly INTEGER,
+  setup_cost INTEGER,
+  demand_score INTEGER,
+  competition_score INTEGER,
+  difficulty_rating TEXT,
+  market_saturation TEXT,
+  country TEXT,
+  city TEXT,
+  service_id TEXT,
+  service_label TEXT,
+  status TEXT DEFAULT 'new',
+  saved BOOLEAN DEFAULT FALSE,
+  notes TEXT DEFAULT '',
+  follow_up_date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 3. CLIENTS ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS clients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  btype TEXT,
+  monthly_rate INTEGER,
+  status TEXT DEFAULT 'active',
+  notes TEXT DEFAULT '',
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 4. SCANS ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS scans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  service TEXT NOT NULL,
+  country TEXT NOT NULL,
+  city TEXT,
+  lead_count INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 5. GLOBAL LEAD NAMES ──────────────────────────────
+CREATE TABLE IF NOT EXISTS global_lead_names (
+  id BIGSERIAL PRIMARY KEY,
+  name_lower TEXT UNIQUE NOT NULL,
+  claimed_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 6. COMMUNITY GROUPS ───────────────────────────────
+CREATE TABLE IF NOT EXISTS groups (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  owner_id TEXT,
+  owner_name TEXT,
+  member_count INTEGER DEFAULT 0,
+  private BOOLEAN DEFAULT FALSE,
+  color TEXT DEFAULT 'var(--blue)',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 7. USER ↔ GROUP MEMBERSHIP ────────────────────────
+CREATE TABLE IF NOT EXISTS user_groups (
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  group_id TEXT REFERENCES groups(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, group_id)
+);
+
+-- ─── 8. COMMUNITY POSTS ────────────────────────────────
+CREATE TABLE IF NOT EXISTS posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  user_name TEXT,
+  user_role TEXT DEFAULT 'user',
+  author_name TEXT,
+  author_email TEXT,
+  author_plan TEXT,
+  type TEXT DEFAULT 'general',
+  title TEXT,
+  group_id TEXT REFERENCES groups(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  upvotes TEXT[] DEFAULT '{}',
+  comments JSONB DEFAULT '[]',
+  country TEXT,
+  service TEXT,
+  flagged BOOLEAN DEFAULT FALSE,
+  flag_reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 9. REPORTS ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reporter_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
@@ -48,78 +154,86 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ─── Community posts (updated with moderation fields) ──
-CREATE TABLE IF NOT EXISTS posts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  user_name TEXT NOT NULL,
-  user_role TEXT DEFAULT 'user',
-  group_id TEXT,
-  content TEXT NOT NULL,
-  likes UUID[] DEFAULT '{}',
-  flagged BOOLEAN DEFAULT FALSE,
-  flag_reason TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- ─── Profile image storage ─────────────────────────────
--- In Supabase, create a storage bucket called 'avatars'
--- Dashboard → Storage → New Bucket → name: avatars, public: true
--- Then add this policy:
---   Bucket: avatars
---   Policy: Allow authenticated users to upload to their own folder
---   Definition: (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1])
-
--- ─── Indexes ───────────────────────────────────────────
+-- ============================================================
+-- INDEXES
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_leads_user ON leads(user_id);
+CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_clients_user ON clients(user_id);
+CREATE INDEX IF NOT EXISTS idx_scans_user ON scans(user_id);
+CREATE INDEX IF NOT EXISTS idx_global_names ON global_lead_names(name_lower);
+CREATE INDEX IF NOT EXISTS idx_posts_group ON posts(group_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_main ON posts(created_at DESC) WHERE group_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
-CREATE INDEX IF NOT EXISTS idx_reports_offender ON reports(offender_id);
-CREATE INDEX IF NOT EXISTS idx_posts_flagged ON posts(flagged) WHERE flagged = true;
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
-CREATE INDEX IF NOT EXISTS idx_profiles_banned ON profiles(banned) WHERE banned = true;
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+CREATE INDEX IF NOT EXISTS idx_user_groups_user ON user_groups(user_id);
 
--- ─── RLS for reports ───────────────────────────────────
+-- ============================================================
+-- ROW LEVEL SECURITY
+-- ============================================================
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE global_lead_names ENABLE ROW LEVEL SECURITY;
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 
--- Anyone can create reports (authenticated)
-CREATE POLICY "create reports" ON reports
-  FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+-- Profiles
+CREATE POLICY "read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "admins read all profiles" ON profiles FOR SELECT USING (
+  EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin','moderator'))
+);
+CREATE POLICY "admins update any profile" ON profiles FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+);
 
--- Admins/mods can read all reports
-CREATE POLICY "mods read reports" ON reports
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role IN ('admin', 'moderator')
-    )
-  );
+-- Leads, Clients, Scans: own data only
+CREATE POLICY "manage own leads" ON leads FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "manage own clients" ON clients FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "manage own scans" ON scans FOR ALL USING (auth.uid() = user_id);
 
--- Admins can update report status
-CREATE POLICY "admins resolve reports" ON reports
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
+-- Global names: anyone reads, authenticated writes
+CREATE POLICY "read global names" ON global_lead_names FOR SELECT USING (true);
+CREATE POLICY "insert global names" ON global_lead_names FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
--- ─── Admin-only: update any user's role/ban status ─────
-CREATE POLICY "admins manage users" ON profiles
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM profiles AS admin_check
-      WHERE admin_check.id = auth.uid()
-      AND admin_check.role = 'admin'
-    )
-  );
+-- Posts: anyone reads, owners write
+CREATE POLICY "read all posts" ON posts FOR SELECT USING (true);
+CREATE POLICY "create own posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "update own posts" ON posts FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "mods update posts" ON posts FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin','moderator'))
+);
 
--- ─── Auto-set admin on specific email ──────────────────
--- Update the signup trigger to check for admin email
+-- Groups: anyone reads, authenticated creates
+CREATE POLICY "read all groups" ON groups FOR SELECT USING (true);
+CREATE POLICY "create groups" ON groups FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "update own groups" ON groups FOR UPDATE USING (true);
+
+-- User groups: own memberships
+CREATE POLICY "manage own memberships" ON user_groups FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "read memberships" ON user_groups FOR SELECT USING (true);
+
+-- Reports
+CREATE POLICY "create reports" ON reports FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+CREATE POLICY "mods read reports" ON reports FOR SELECT USING (
+  EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin','moderator'))
+);
+CREATE POLICY "admins resolve reports" ON reports FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+);
+
+-- ============================================================
+-- AUTO-CREATE PROFILE ON SIGNUP
+-- ============================================================
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, email, name, country, svc, currency, ref_code, role)
+  INSERT INTO profiles (id, email, name, country, svc, currency, ref_code, role, plan)
   VALUES (
     NEW.id,
     NEW.email,
@@ -128,25 +242,45 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'svc', 'web'),
     COALESCE(NEW.raw_user_meta_data->>'currency', 'USD'),
     'ZV-' || UPPER(LEFT(SPLIT_PART(NEW.email, '@', 1), 4)) || '-' || UPPER(SUBSTR(MD5(RANDOM()::TEXT), 1, 4)),
-    CASE WHEN NEW.email = 'admin@zenvoy.com' THEN 'admin' ELSE 'user' END
+    CASE WHEN NEW.email = 'admin@zenvylo.com' THEN 'admin' ELSE 'user' END,
+    'free'
   );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Drop and recreate trigger if it exists
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- ─── Helper: check if user is mod/admin ────────────────
-CREATE OR REPLACE FUNCTION is_mod_or_admin(user_id UUID)
-RETURNS BOOLEAN AS $$
+-- ============================================================
+-- HELPER FUNCTIONS
+-- ============================================================
+CREATE OR REPLACE FUNCTION increment_scans(p_user_id UUID)
+RETURNS VOID AS $$
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM profiles
-    WHERE id = user_id AND role IN ('admin', 'moderator')
-  );
+  UPDATE profiles SET scans_used = scans_used + 1 WHERE id = p_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- SEED COMMUNITY GROUPS (run once)
+-- ============================================================
+INSERT INTO groups (id, name, description, owner_id, owner_name, member_count, private, color) VALUES
+  ('sg1',  'UK & Ireland Freelancers',     'Leads, wins, and local tips for freelancers across the UK and Ireland', 'system', 'Zenvylo', 0, false, 'var(--blue)'),
+  ('sg2',  'SEO Agency Owners',             'Strategy, tools, and lead-sharing for SEO specialists', 'system', 'Zenvylo', 0, false, 'var(--green)'),
+  ('sg3',  'Web Designers Network',         'Share web design leads, templates, pricing strategies', 'system', 'Zenvylo', 0, false, 'var(--lime)'),
+  ('sg4',  'Cold Email & Outreach Lab',     'Templates, deliverability tips, and reply-rate experiments', 'system', 'Zenvylo', 0, false, 'var(--amber)'),
+  ('sg5',  'North America Hustlers',        'US and Canada freelancers sharing leads and rates', 'system', 'Zenvylo', 0, false, 'var(--red)'),
+  ('sg6',  'Africa & Middle East Network',  'West Africa, East Africa, UAE, Saudi — connect and find clients', 'system', 'Zenvylo', 0, false, 'var(--teal)'),
+  ('sg7',  'Social Media Agency Owners',    'Growing a social media management agency? Share wins here', 'system', 'Zenvylo', 0, false, 'var(--purple)'),
+  ('sg8',  'Google Ads & PPC Club',         'Running paid ads for clients? Compare results and rates', 'system', 'Zenvylo', 0, false, 'var(--blue)'),
+  ('sg9',  'Asia-Pacific Freelancers',      'Philippines, Australia, India, Singapore — AP market insights', 'system', 'Zenvylo', 0, false, 'var(--green)'),
+  ('sg10', 'First $1k/Month Club',          'Working towards your first $1k MRR? Accountability group', 'system', 'Zenvylo', 0, false, 'var(--amber)')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- STORAGE: Create an 'avatars' bucket (do this in Supabase Dashboard)
+-- Dashboard → Storage → New Bucket → name: avatars → Public: ON
+-- ============================================================

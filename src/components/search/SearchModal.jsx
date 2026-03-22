@@ -44,16 +44,16 @@ export default function SearchModal({ user, onClose, onDone }) {
       setLog(p=>[...p,steps[i]]);
     }
     try {
-      const existing = DB.getLeads(user.email).map(l=>l.name);
+      const existingLeads = await DB.getLeads(user.email);
+      const existing = existingLeads.map(l=>l.name);
       const count = getLeadsPerScan(user);
       const leads = await generateLeads({service:svc,country,city,existingNames:existing,lowBudget,count});
       setLog(p=>[...p,"✅ Found "+leads.length+" leads! Ranked by opportunity score."]);
       await new Promise(r=>setTimeout(r,400));
-      const scans = DB.getScans(user.email);
       DB.saveScans(user.email,[{
-        id:Date.now(), service:svcObj.label, country, city,
+        service:svcObj.label, country, city,
         count:leads.length, date:Date.now(),
-      },...scans]);
+      }]);
       let updUser;
       if (isFree) {
         incrementScanUsage();

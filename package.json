@@ -1,7 +1,7 @@
 {
-  "name": "zenvoy",
+  "name": "zenvylo",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "@supabase/supabase-js": "^2.49.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

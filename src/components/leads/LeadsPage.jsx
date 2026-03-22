@@ -1,3 +1,4 @@
+import PageHeader from '../ui/PageHeader'
 import { useState, useMemo } from 'react'
 import Icon from '../../icons/Icon'
 import LeadCard from './LeadCard'
@@ -6,7 +7,7 @@ import { canAI } from '../../constants/plans'
 import { csvExport, scoreColor, demandColor } from '../../utils/helpers'
 const I = Icon
 
-export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, onUpgrade }) {
+export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, onUpgrade, onNav }) {
   const [openId,    setOpenId]    = useState(null);
   const [status,    setStatus]    = useState("all");
   const [sort,      setSort]      = useState("score");
@@ -30,7 +31,7 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
     <div style={{overflowX:"hidden",minWidth:0}}>
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,flexWrap:"wrap",gap:10 }}>
         <div>
-          <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(18px,3vw,24px)",wordBreak:"break-word" }}>Leads</h2>
+          <PageHeader title="Leads" onBack={() => onNav("home")} onHome={() => onNav("home")} />
           <p style={{ color:"var(--txt2)",fontSize:13,marginTop:2 }}>{leads.length} total · {leads.filter(l=>l.saved).length} saved · {leads.filter(l=>l.status==="won").length} won</p>
         </div>
         <div style={{ display:"flex",gap:7,flexWrap:"wrap" }}>
