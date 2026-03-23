@@ -71,7 +71,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
             DB.saveUser(refUser.email, updated) // fire-and-forget
           }
         }
-        await DB.signUp({
+        const signUpResult = await DB.signUp({
           email,
           password: pass,
           name,
@@ -80,17 +80,43 @@ export default function Auth({ onAuth, initialMode = "login" }) {
           currency: currency || "USD",
           role: getDefaultRole(email),
         })
-        // Signup succeeded — email confirmation is required
-        setConfirmSent(true)
+
+        // If email confirmation is OFF, Supabase returns a session immediately
+        if (signUpResult?.session) {
+          // Wait for the trigger to create the profile
+          await new Promise(r => setTimeout(r, 1500))
+          let u = await DB.getUser(email)
+          if (!u) {
+            await new Promise(r => setTimeout(r, 1500))
+            u = await DB.getUser(email)
+          }
+          if (u) {
+            onAuth(u)
+          } else {
+            setErr("Account created but profile is loading. Try signing in.")
+          }
+        } else {
+          // Email confirmation is ON — show the verification screen
+          setConfirmSent(true)
+        }
       }
     } catch (e) {
       const msg = e.message || "Something went wrong."
-      if (msg.toLowerCase().includes("email not confirmed") || msg.toLowerCase().includes("email_not_confirmed")) {
+      const m = msg.toLowerCase()
+      if (m.includes("rate limit") || m.includes("429") || m.includes("too many")) {
+        setErr("Too many attempts. Please wait a minute and try again.")
+      } else if (m.includes("email not confirmed") || m.includes("email_not_confirmed")) {
         setErr("Your email isn't verified yet. Check your inbox for the confirmation link, then try signing in again.")
-      } else if (msg.toLowerCase().includes("invalid login")) {
+      } else if (m.includes("invalid login") || m.includes("invalid_credentials")) {
         setErr("Incorrect email or password. Please try again.")
-      } else if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already been registered")) {
+      } else if (m.includes("already registered") || m.includes("already been registered") || m.includes("user_already_exists")) {
         setErr("This email is already registered. Try signing in instead.")
+      } else if (m.includes("email_address_invalid") || m.includes("invalid email")) {
+        setErr("Please enter a valid email address.")
+      } else if (m.includes("weak_password") || m.includes("password")) {
+        setErr("Password must be at least 6 characters.")
+      } else if (m.includes("network") || m.includes("fetch")) {
+        setErr("Network error. Check your connection and try again.")
       } else {
         setErr(msg)
       }
