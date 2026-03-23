@@ -22,6 +22,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
   const [busy,     setBusy]     = useState(false)
   const [step,     setStep]     = useState(1)
   const [resetSent, setResetSent] = useState(false)
+  const [confirmSent, setConfirmSent] = useState(false)
 
   const sendReset = async () => {
     if (!email) return setErr("Enter your email first.")
@@ -53,7 +54,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
       if (mode === "login") {
         await DB.signIn({ email, password: pass })
         const u = await DB.getUser(email)
-        if (!u) { setErr("Profile not found."); setBusy(false); return }
+        if (!u) { setErr("Account found but profile is still being set up. Try again in a few seconds."); setBusy(false); return }
         if (u.banned) { setErr("This account has been suspended."); setBusy(false); return }
         onAuth(u)
       } else {
@@ -74,18 +75,20 @@ export default function Auth({ onAuth, initialMode = "login" }) {
           currency: currency || "USD",
           role: getDefaultRole(email),
         })
-        // Wait a moment for the trigger to create the profile
-        await new Promise(r => setTimeout(r, 1000))
-        const u = await DB.getUser(email)
-        if (u) {
-          onAuth(u)
-        } else {
-          // Profile not created yet — check email for confirmation
-          setErr("Check your email to confirm your account, then sign in.")
-        }
+        // Signup succeeded — email confirmation is required
+        setConfirmSent(true)
       }
     } catch (e) {
-      setErr(e.message || "Something went wrong.")
+      const msg = e.message || "Something went wrong."
+      if (msg.toLowerCase().includes("email not confirmed") || msg.toLowerCase().includes("email_not_confirmed")) {
+        setErr("Your email isn't verified yet. Check your inbox for the confirmation link, then try signing in again.")
+      } else if (msg.toLowerCase().includes("invalid login")) {
+        setErr("Incorrect email or password. Please try again.")
+      } else if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already been registered")) {
+        setErr("This email is already registered. Try signing in instead.")
+      } else {
+        setErr(msg)
+      }
     }
     setBusy(false)
   }
@@ -126,6 +129,27 @@ export default function Auth({ onAuth, initialMode = "login" }) {
             ))}
           </div>
 
+          {confirmSent ? (
+            <div style={{ textAlign: "center", padding: "24px 0" }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(198,241,53,.1)", border: "2.5px solid rgba(198,241,53,.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <I n="check" s={26} c="var(--lime)" />
+              </div>
+              <div style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 18, marginBottom: 8 }}>Check Your Inbox!</div>
+              <p style={{ color: "var(--txt2)", fontSize: 13, lineHeight: 1.7, marginBottom: 6 }}>
+                We sent a verification link to
+              </p>
+              <p style={{ fontWeight: 700, fontSize: 14, color: "var(--lime)", marginBottom: 16 }}>{email}</p>
+              <p style={{ color: "var(--txt3)", fontSize: 12, lineHeight: 1.6, marginBottom: 20 }}>
+                Click the link in the email to activate your account, then come back here and sign in. Check your spam folder if you don't see it.
+              </p>
+              <button className="btn btn-lime" style={{ width: "100%", justifyContent: "center", padding: "11px" }}
+                onClick={() => { setConfirmSent(false); setMode("login"); setPass(""); setStep(1); setErr("") }}>
+                <I n="check" s={14} /> Got it — take me to Sign In
+              </button>
+            </div>
+          ) : (
+
+          <>
           {mode === "login" ? (
             resetSent ? (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
@@ -234,6 +258,8 @@ export default function Auth({ onAuth, initialMode = "login" }) {
           {mode === "signup" && step === 2 && (
             <button style={{ width: "100%", marginTop: 10, padding: "8px", color: "var(--txt3)", fontSize: 12, cursor: "pointer", background: "none", border: "none" }}
               onClick={() => setStep(1)}>← Back</button>
+          )}
+          </>
           )}
         </div>
         <p style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "var(--txt3)" }}>
