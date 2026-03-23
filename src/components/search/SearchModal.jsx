@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Icon from '../../icons/Icon'
 import { SERVICES, COUNTRIES } from '../../constants/services'
-import { canMulti, getLeadsPerScan, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
+import { canMulti, getLeadsPerScan, getScansLeft, getScansLimit } from '../../constants/plans'
 import { generateLeads } from '../../utils/ai'
 import { hasFreeScansLeft, getFreeScansLeft, incrementScanUsage, FREE_SCAN_LIMIT } from '../../utils/scanQuota'
 import * as DB from '../../utils/db'
@@ -17,9 +17,7 @@ export default function SearchModal({ user, onClose, onDone }) {
   const [log,      setLog]      = useState([]);
   const [err,      setErr]      = useState("");
   const logRef = useRef(null);
-  const planScansLeft = isFree ? getFreeScansLeft() : getScansLeft(user);
-  const bonusScans = getBonusScans(user);
-  const scansLeft = planScansLeft + bonusScans;
+  const scansLeft = isFree ? getFreeScansLeft() : getScansLeft(user);
   const scansTotal = isFree ? FREE_SCAN_LIMIT : getScansLimit(user);
   const multiAllowed = canMulti(user);
 
@@ -27,8 +25,8 @@ export default function SearchModal({ user, onClose, onDone }) {
 
   const run = async () => {
     if (!country) { setErr("Select a country first."); return; }
-    if (isFree && !hasFreeScansLeft() && bonusScans <= 0) { setErr("No scans left — upgrade your plan or buy a scan pack."); return; }
-    if (!isFree && planScansLeft <= 0 && bonusScans <= 0) { setErr("No scans left — upgrade or buy a scan pack in Settings."); return; }
+    if (isFree && !hasFreeScansLeft()) { setErr("No free scans left this month — upgrade your plan."); return; }
+    if (!isFree && scansLeft<=0) { setErr("No scans left — upgrade your plan in Settings."); return; }
     setErr(""); setScanning(true); setLog([]);
     const svcObj = SERVICES.find(s=>s.id===svc);
     const loc = city ? city+", "+country : country;
@@ -58,21 +56,10 @@ export default function SearchModal({ user, onClose, onDone }) {
       }]);
       let updUser;
       if (isFree) {
-        if (hasFreeScansLeft()) {
-          incrementScanUsage();
-          updUser = user;
-        } else {
-          // Use bonus scan
-          updUser = {...user, bonusScans: Math.max(0, (user.bonusScans||0) - 1)};
-          DB.saveUser(user.email, updUser);
-        }
+        incrementScanUsage();
+        updUser = user; // free plan tracks scans in scanQuota, not user object
       } else {
-        if (planScansLeft > 0) {
-          updUser = {...user, scansUsed:(user.scansUsed||0)+1};
-        } else {
-          // Use bonus scan
-          updUser = {...user, bonusScans: Math.max(0, (user.bonusScans||0) - 1)};
-        }
+        updUser = {...user, scansUsed:(user.scansUsed||0)+1};
         DB.saveUser(user.email, updUser);
       }
       onDone(leads, updUser);

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import Icon from '../../icons/Icon'
 import PasswordInput from '../ui/PasswordInput'
 import { COUNTRIES, SERVICES, CURRENCIES } from '../../constants/services'
-import { supabase } from '../../lib/supabase'
 import * as DB from '../../utils/db'
 import { mkRefCode } from '../../utils/helpers'
 import { getDefaultRole } from '../../utils/roles'
@@ -21,24 +20,6 @@ export default function Auth({ onAuth, initialMode = "login" }) {
   const [err,      setErr]      = useState("")
   const [busy,     setBusy]     = useState(false)
   const [step,     setStep]     = useState(1)
-  const [resetSent, setResetSent] = useState(false)
-  const [confirmSent, setConfirmSent] = useState(false)
-
-  const sendReset = async () => {
-    if (!email) return setErr("Enter your email first.")
-    setBusy(true)
-    setErr("")
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + window.location.pathname,
-      })
-      if (error) throw error
-      setResetSent(true)
-    } catch (e) {
-      setErr(e.message || "Could not send reset email.")
-    }
-    setBusy(false)
-  }
 
   const go = async () => {
     setErr("")
@@ -54,7 +35,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
       if (mode === "login") {
         await DB.signIn({ email, password: pass })
         const u = await DB.getUser(email)
-        if (!u) { setErr("Account found but profile is still being set up. Try again in a few seconds."); setBusy(false); return }
+        if (!u) { setErr("Profile not found."); setBusy(false); return }
         if (u.banned) { setErr("This account has been suspended."); setBusy(false); return }
         onAuth(u)
       } else {
@@ -75,20 +56,18 @@ export default function Auth({ onAuth, initialMode = "login" }) {
           currency: currency || "USD",
           role: getDefaultRole(email),
         })
-        // Signup succeeded — email confirmation is required
-        setConfirmSent(true)
+        // Wait a moment for the trigger to create the profile
+        await new Promise(r => setTimeout(r, 1000))
+        const u = await DB.getUser(email)
+        if (u) {
+          onAuth(u)
+        } else {
+          // Profile not created yet — check email for confirmation
+          setErr("Check your email to confirm your account, then sign in.")
+        }
       }
     } catch (e) {
-      const msg = e.message || "Something went wrong."
-      if (msg.toLowerCase().includes("email not confirmed") || msg.toLowerCase().includes("email_not_confirmed")) {
-        setErr("Your email isn't verified yet. Check your inbox for the confirmation link, then try signing in again.")
-      } else if (msg.toLowerCase().includes("invalid login")) {
-        setErr("Incorrect email or password. Please try again.")
-      } else if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already been registered")) {
-        setErr("This email is already registered. Try signing in instead.")
-      } else {
-        setErr(msg)
-      }
+      setErr(e.message || "Something went wrong.")
     }
     setBusy(false)
   }
@@ -110,7 +89,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
               <I n="target" s={24} c="#0c0e13" />
             </div>
             <span style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 26, letterSpacing: "-.03em" }}>
-              Zen<span style={{ color: "var(--lime)" }}>vylo</span>
+              Zen<span style={{ color: "var(--lime)" }}>voy</span>
             </span>
           </div>
           <p style={{ color: "var(--txt2)", fontSize: 14 }}>Find clients. Close deals. Grow your business.</p>
@@ -129,56 +108,17 @@ export default function Auth({ onAuth, initialMode = "login" }) {
             ))}
           </div>
 
-          {confirmSent ? (
-            <div style={{ textAlign: "center", padding: "24px 0" }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(198,241,53,.1)", border: "2.5px solid rgba(198,241,53,.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <I n="check" s={26} c="var(--lime)" />
-              </div>
-              <div style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 18, marginBottom: 8 }}>Check Your Inbox!</div>
-              <p style={{ color: "var(--txt2)", fontSize: 13, lineHeight: 1.7, marginBottom: 6 }}>
-                We sent a verification link to
-              </p>
-              <p style={{ fontWeight: 700, fontSize: 14, color: "var(--lime)", marginBottom: 16 }}>{email}</p>
-              <p style={{ color: "var(--txt3)", fontSize: 12, lineHeight: 1.6, marginBottom: 20 }}>
-                Click the link in the email to activate your account, then come back here and sign in. Check your spam folder if you don't see it.
-              </p>
-              <button className="btn btn-lime" style={{ width: "100%", justifyContent: "center", padding: "11px" }}
-                onClick={() => { setConfirmSent(false); setMode("login"); setPass(""); setStep(1); setErr("") }}>
-                <I n="check" s={14} /> Got it — take me to Sign In
-              </button>
-            </div>
-          ) : (
-
-          <>
           {mode === "login" ? (
-            resetSent ? (
-              <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(198,241,53,.1)", border: "2px solid rgba(198,241,53,.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-                  <I n="check" s={22} c="var(--lime)" />
-                </div>
-                <div style={{ fontFamily: "var(--fh)", fontWeight: 800, fontSize: 16, marginBottom: 8 }}>Check Your Email</div>
-                <p style={{ color: "var(--txt2)", fontSize: 13, lineHeight: 1.6 }}>
-                  We sent a password reset link to <strong>{email}</strong>. Click the link in the email to set a new password.
-                </p>
-                <button style={{ marginTop: 14, fontSize: 12, color: "var(--blue)", cursor: "pointer", background: "none", border: "none", fontWeight: 600 }}
-                  onClick={() => { setResetSent(false); setErr("") }}>← Back to Sign In</button>
-              </div>
-            ) : (
             <>
               <div style={{ marginBottom: 13 }}>
                 <span className="lbl">Email</span>
                 <input className="inp" type="email" placeholder="you@agency.com" value={email} onChange={e => setEmail(e.target.value)} />
               </div>
-              <div style={{ marginBottom: 6 }}>
+              <div style={{ marginBottom: 20 }}>
                 <span className="lbl">Password</span>
                 <PasswordInput value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && go()} />
               </div>
-              <div style={{ textAlign: "right", marginBottom: 16 }}>
-                <button style={{ fontSize: 11, color: "var(--blue)", cursor: "pointer", background: "none", border: "none", fontWeight: 600 }}
-                  onClick={sendReset} disabled={busy}>Forgot password?</button>
-              </div>
             </>
-            )
           ) : (
             step === 1 ? (
               <>
@@ -236,7 +176,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   <span className="lbl">Referral Code (optional)</span>
-                  <input className="inp" placeholder="ZL-XXXX-XXXX" value={refCode} onChange={e => setRefCode(e.target.value.toUpperCase())} />
+                  <input className="inp" placeholder="ZV-XXXX-XXXX" value={refCode} onChange={e => setRefCode(e.target.value.toUpperCase())} />
                 </div>
               </>
             )
@@ -248,7 +188,7 @@ export default function Auth({ onAuth, initialMode = "login" }) {
             <I n="alert" s={13} />{err}
           </div>}
 
-          {((mode === "login" && !resetSent) || (mode === "signup" && step === 2)) && (
+          {(mode === "login" || (mode === "signup" && step === 2)) && (
             <button className="btn btn-lime" style={{ width: "100%", justifyContent: "center", padding: "12px" }} onClick={go} disabled={busy}>
               {busy && <span style={{ width: 16, height: 16, border: "2.5px solid rgba(0,0,0,.2)", borderTopColor: "#000", borderRadius: "50%", animation: "spin .7s linear infinite", display: "inline-block" }} />}
               {busy ? "Please wait…" : mode === "login" ? "Sign In" : "Create Free Account"}
@@ -258,8 +198,6 @@ export default function Auth({ onAuth, initialMode = "login" }) {
           {mode === "signup" && step === 2 && (
             <button style={{ width: "100%", marginTop: 10, padding: "8px", color: "var(--txt3)", fontSize: 12, cursor: "pointer", background: "none", border: "none" }}
               onClick={() => setStep(1)}>← Back</button>
-          )}
-          </>
           )}
         </div>
         <p style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "var(--txt3)" }}>

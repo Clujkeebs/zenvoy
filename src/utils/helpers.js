@@ -9,7 +9,7 @@ export const timeAgo = ts => {
   if (s < 86400) return Math.floor(s / 3600) + "h ago"
   return Math.floor(s / 86400) + "d ago"
 }
-export const mkRefCode = email => "ZL-" + email.split("@")[0].slice(0, 4).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase()
+export const mkRefCode = email => "ZV-" + email.split("@")[0].slice(0, 4).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase()
 
 export function csvExport(leads) {
   const h = ["Name","Type","Country","City","Phone","Website","Problems","Score","Demand","Competition","Setup Cost","Monthly Rate","Monthly Profit","Status","Notes","Date"]

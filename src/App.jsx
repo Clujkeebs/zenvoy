@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Icon from './icons/Icon'
-import { PLANS, getScansLeft, getScansLimit, getLeadsPerScan, getBonusScans } from './constants/plans'
+import { PLANS, getScansLeft, getScansLimit, getLeadsPerScan } from './constants/plans'
 import * as DB from './utils/db'
 import { checkTrialExpiry, isTrialActive, getTrialDaysLeft } from './utils/trial'
 import { getFreeScansLeft } from './utils/scanQuota'
@@ -77,14 +77,14 @@ export default function App() {
 
   // Page title
   const PAGE_TITLES = useMemo(() => ({
-    home: "Dashboard — Zenvylo", leads: "My Leads — Zenvylo",
-    clients: "Clients — Zenvylo", community: "Community — Zenvylo",
-    tools: "Business Tools — Zenvylo", analytics: "Analytics — Zenvylo",
-    history: "Scan History — Zenvylo", subscription: "Subscription — Zenvylo",
-    settings: "Settings — Zenvylo", enterprise: "Enterprise — Zenvylo",
-    support: "Support — Zenvylo", admin: "Admin — Zenvylo",
+    home: "Dashboard — Zenvoy", leads: "My Leads — Zenvoy",
+    clients: "Clients — Zenvoy", community: "Community — Zenvoy",
+    tools: "Business Tools — Zenvoy", analytics: "Analytics — Zenvoy",
+    history: "Scan History — Zenvoy", subscription: "Subscription — Zenvoy",
+    settings: "Settings — Zenvoy", enterprise: "Enterprise — Zenvoy",
+    support: "Support — Zenvoy", admin: "Admin — Zenvoy",
   }), [])
-  useEffect(() => { document.title = PAGE_TITLES[tab] || "Zenvylo — AI Lead Scanner" }, [tab, PAGE_TITLES])
+  useEffect(() => { document.title = PAGE_TITLES[tab] || "Zenvoy — AI Lead Scanner" }, [tab, PAGE_TITLES])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -164,13 +164,11 @@ export default function App() {
   const openSearch = useCallback(() => setShowSearch(true), [])
 
   // ─── Derived state ───────────────────────────────────
-  const planScansLeft = useMemo(() => {
+  const scansLeft = useMemo(() => {
     if (!user) return 0
     if (user.plan === "free") return getFreeScansLeft()
     return getScansLeft(user)
   }, [user, tab])
-  const bonusScans = useMemo(() => user ? getBonusScans(user) : 0, [user])
-  const scansLeft = planScansLeft + bonusScans
 
   const plan   = useMemo(() => user ? (PLANS[user.plan] || PLANS.free) : PLANS.free, [user])
   const leadsN = useMemo(() => user ? getLeadsPerScan(user) : 5, [user])
@@ -223,7 +221,7 @@ export default function App() {
             <I n="target" s={15} c="#0c0e13" />
           </div>
           <span className="sidebar-logo-text" style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 15, letterSpacing: "-.02em", overflow: "hidden", whiteSpace: "nowrap" }}>
-            Zen<span style={{ color: "var(--lime)" }}>vylo</span>
+            Zen<span style={{ color: "var(--lime)" }}>voy</span>
           </span>
         </div>
 
@@ -250,7 +248,7 @@ export default function App() {
               background: scansLeft === 0 ? "var(--red)" : scansLeft <= 2 ? "var(--amber)" : "var(--lime)",
               width: ((scansLeft / (user.plan === "free" ? 3 : getScansLimit(user))) * 100) + "%" }} />
           </div>
-          <div className="scan-detail" style={{ fontSize: 10, color: "var(--txt3)", marginTop: 4 }}>{leadsN} leads/scan · {plan.name}{bonusScans > 0 ? " + " + bonusScans + " bonus" : ""}</div>
+          <div className="scan-detail" style={{ fontSize: 10, color: "var(--txt3)", marginTop: 4 }}>{leadsN} leads/scan · {plan.name}</div>
         </div>
 
         <button className="btn btn-lime sidebar-search-btn" style={{ width: "100%", justifyContent: "center", marginBottom: 12, fontSize: 13, padding: "10px" }} onClick={openSearch}>

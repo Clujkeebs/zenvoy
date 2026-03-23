@@ -1,7 +1,7 @@
 // ─── User Roles ────────────────────────────────────────
 // Roles: "user" | "moderator" | "admin"
 // Default admin account — change to your real email after domain setup
-export const DEFAULT_ADMIN_EMAIL = "admin@zenvylo.com"
+export const DEFAULT_ADMIN_EMAIL = "admin@zenvoy.com"
 
 export const ROLES = {
   user: { label: "User", icon: null, color: "var(--txt2)" },

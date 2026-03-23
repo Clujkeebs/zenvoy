@@ -242,7 +242,7 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'svc', 'web'),
     COALESCE(NEW.raw_user_meta_data->>'currency', 'USD'),
     'ZV-' || UPPER(LEFT(SPLIT_PART(NEW.email, '@', 1), 4)) || '-' || UPPER(SUBSTR(MD5(RANDOM()::TEXT), 1, 4)),
-    CASE WHEN NEW.email = 'admin@zenvylo.com' THEN 'admin' ELSE 'user' END,
+    CASE WHEN NEW.email = 'admin@zenvoy.com' THEN 'admin' ELSE 'user' END,
     'free'
   );
   RETURN NEW;
@@ -268,16 +268,16 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- SEED COMMUNITY GROUPS (run once)
 -- ============================================================
 INSERT INTO groups (id, name, description, owner_id, owner_name, member_count, private, color) VALUES
-  ('sg1',  'UK & Ireland Freelancers',     'Leads, wins, and local tips for freelancers across the UK and Ireland', 'system', 'Zenvylo', 0, false, 'var(--blue)'),
-  ('sg2',  'SEO Agency Owners',             'Strategy, tools, and lead-sharing for SEO specialists', 'system', 'Zenvylo', 0, false, 'var(--green)'),
-  ('sg3',  'Web Designers Network',         'Share web design leads, templates, pricing strategies', 'system', 'Zenvylo', 0, false, 'var(--lime)'),
-  ('sg4',  'Cold Email & Outreach Lab',     'Templates, deliverability tips, and reply-rate experiments', 'system', 'Zenvylo', 0, false, 'var(--amber)'),
-  ('sg5',  'North America Hustlers',        'US and Canada freelancers sharing leads and rates', 'system', 'Zenvylo', 0, false, 'var(--red)'),
-  ('sg6',  'Africa & Middle East Network',  'West Africa, East Africa, UAE, Saudi — connect and find clients', 'system', 'Zenvylo', 0, false, 'var(--teal)'),
-  ('sg7',  'Social Media Agency Owners',    'Growing a social media management agency? Share wins here', 'system', 'Zenvylo', 0, false, 'var(--purple)'),
-  ('sg8',  'Google Ads & PPC Club',         'Running paid ads for clients? Compare results and rates', 'system', 'Zenvylo', 0, false, 'var(--blue)'),
-  ('sg9',  'Asia-Pacific Freelancers',      'Philippines, Australia, India, Singapore — AP market insights', 'system', 'Zenvylo', 0, false, 'var(--green)'),
-  ('sg10', 'First $1k/Month Club',          'Working towards your first $1k MRR? Accountability group', 'system', 'Zenvylo', 0, false, 'var(--amber)')
+  ('sg1',  'UK & Ireland Freelancers',     'Leads, wins, and local tips for freelancers across the UK and Ireland', 'system', 'Zenvoy', 0, false, 'var(--blue)'),
+  ('sg2',  'SEO Agency Owners',             'Strategy, tools, and lead-sharing for SEO specialists', 'system', 'Zenvoy', 0, false, 'var(--green)'),
+  ('sg3',  'Web Designers Network',         'Share web design leads, templates, pricing strategies', 'system', 'Zenvoy', 0, false, 'var(--lime)'),
+  ('sg4',  'Cold Email & Outreach Lab',     'Templates, deliverability tips, and reply-rate experiments', 'system', 'Zenvoy', 0, false, 'var(--amber)'),
+  ('sg5',  'North America Hustlers',        'US and Canada freelancers sharing leads and rates', 'system', 'Zenvoy', 0, false, 'var(--red)'),
+  ('sg6',  'Africa & Middle East Network',  'West Africa, East Africa, UAE, Saudi — connect and find clients', 'system', 'Zenvoy', 0, false, 'var(--teal)'),
+  ('sg7',  'Social Media Agency Owners',    'Growing a social media management agency? Share wins here', 'system', 'Zenvoy', 0, false, 'var(--purple)'),
+  ('sg8',  'Google Ads & PPC Club',         'Running paid ads for clients? Compare results and rates', 'system', 'Zenvoy', 0, false, 'var(--blue)'),
+  ('sg9',  'Asia-Pacific Freelancers',      'Philippines, Australia, India, Singapore — AP market insights', 'system', 'Zenvoy', 0, false, 'var(--green)'),
+  ('sg10', 'First $1k/Month Club',          'Working towards your first $1k MRR? Accountability group', 'system', 'Zenvoy', 0, false, 'var(--amber)')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

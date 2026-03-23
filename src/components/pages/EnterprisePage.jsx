@@ -16,8 +16,8 @@ export default function EnterprisePage({ onNav }) {
       </p>
       <div style={{ background: "var(--s2)", border: "1.5px solid var(--brd)", borderRadius: 12, padding: "20px 28px", marginBottom: 24 }}>
         <div style={{ fontSize: 13, color: "var(--txt3)", marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em" }}>Get in touch</div>
-        <a href="mailto:support@zenvylo.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
-          support@zenvylo.com
+        <a href="mailto:support@zenvoy.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
+          support@zenvoy.com
         </a>
       </div>
       <p style={{ fontSize: 12, color: "var(--txt3)" }}>We typically respond within 24 hours.</p>
