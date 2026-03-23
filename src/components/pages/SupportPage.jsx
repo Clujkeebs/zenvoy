@@ -8,7 +8,7 @@ const FAQ = [
   { q: "How do I upgrade my plan?", a: "Go to Settings → Subscription and choose a plan. Starter ($9/mo), Growth ($19/mo), Pro ($39/mo), and Scale ($79/mo) are available. Pro includes a 7-day free trial." },
   { q: "What happens during the Pro trial?", a: "You get full Pro features for 7 days — 50 scans, 10 leads each, AI writing tools, and multi-country search. After 7 days, you'll need to subscribe or your account reverts to the Free plan." },
   { q: "Can I cancel my subscription?", a: "Yes, anytime. Go to Settings → Subscription → Manage Billing. All plans are month-to-month with no contracts or cancellation fees." },
-  { q: "Why was my message blocked in the community?", a: "We use an automated filter to keep the community professional. If your message was flagged incorrectly, reach out to support and we'll review it." },
+  { q: "How do I use scan packs?", a: "Scan packs are one-time purchases that give you extra scans on top of your plan. They never expire. Buy them from the Subscription page. When your plan scans run out, bonus scans are used automatically." },
   { q: "How do I change my password or email?", a: "Go to Settings → Profile to update your name and service. Email changes require contacting support. Password reset is available from the login screen." },
   { q: "What does the opportunity score mean?", a: "Each lead gets a 0–100 score based on how much they need your service. Scores above 75 are high-priority leads — businesses with real, fixable problems like no website, slow speeds, or few reviews." },
   { q: "How is billing handled?", a: "We use Stripe for all payments. Your card is charged monthly on the day you subscribed. You can update payment info or cancel from the Stripe customer portal via Settings." },

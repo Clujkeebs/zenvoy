@@ -54,7 +54,7 @@ export default function SearchModal({ user, onClose, onDone }) {
       await new Promise(r=>setTimeout(r,400));
       DB.saveScans(user.email,[{
         service:svcObj.label, country, city,
-        count:leads.length, date:Date.now(),
+        leadCount:leads.length,
       }]);
       let updUser;
       if (isFree) {

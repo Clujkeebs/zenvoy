@@ -57,7 +57,8 @@ export async function signUp({ email, password, name, country, svc, currency, ro
     email,
     password,
     options: {
-      data: { name, country, svc, currency, role }
+      data: { name, country, svc, currency, role },
+      emailRedirectTo: window.location.origin,
     }
   })
   if (error) throw error
@@ -128,10 +129,21 @@ export async function getLeads(_email) {
 export async function insertLeads(leads) {
   const userId = await getUserId()
   if (!userId || !leads.length) return leads
+  // Only keep fields that exist in the leads table
+  const LEAD_COLS = new Set([
+    'name','btype','address','phone','website','rating','reviews','speed','ssl',
+    'employees','founded','problems','why','score','suggested_monthly_rate',
+    'my_monthly_rate','tools_cost_monthly','setup_cost','demand_score',
+    'competition_score','difficulty_rating','market_saturation','country','city',
+    'service_id','service_label','status','saved','notes','follow_up_date','user_id'
+  ])
   const rows = leads.map(l => {
     const r = toSnake(l)
     r.user_id = userId
-    if (r.id?.startsWith('l_')) delete r.id
+    // Strip unknown fields
+    for (const k of Object.keys(r)) {
+      if (!LEAD_COLS.has(k)) delete r[k]
+    }
     return r
   })
   const { data, error } = await supabase.from('leads').insert(rows).select()

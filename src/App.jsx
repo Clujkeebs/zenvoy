@@ -15,7 +15,7 @@ import SearchModal from './components/search/SearchModal'
 import Home from './components/home/Home'
 import LeadsPage from './components/leads/LeadsPage'
 import ClientsPage from './components/clients/ClientsPage'
-import CommunityPage from './components/community/CommunityPage'
+// import CommunityPage from './components/community/CommunityPage' // Coming soon
 import ToolsPage from './components/tools/ToolsPage'
 import AnalyticsPage from './components/analytics/AnalyticsPage'
 import HistoryPage from './components/history/HistoryPage'
@@ -127,13 +127,25 @@ export default function App() {
 
   // ─── Lead / Client mutations ─────────────────────────
   // State updates are instant, Supabase syncs in background
-  const handleLeads = useCallback((newLeads, updUser) => {
+  const handleLeads = useCallback(async (newLeads, updUser) => {
     setLeads(prev => [...newLeads, ...prev])
-    DB.insertLeads(newLeads) // fire-and-forget — inserts new rows
     setUser(updUser)
     setShowSearch(false)
     showToast("Found " + newLeads.length + " new leads!")
     setTab("leads")
+    // Insert to DB and update with server-generated UUIDs
+    try {
+      const saved = await DB.insertLeads(newLeads)
+      if (saved && saved.length) {
+        setLeads(prev => {
+          // Replace the temporary leads with DB versions (have real UUIDs)
+          const withoutTemp = prev.filter(l => !String(l.id).startsWith('l_'))
+          return [...saved, ...withoutTemp]
+        })
+      }
+    } catch (e) {
+      console.error('Lead save error:', e)
+    }
   }, [showToast])
 
   const updLead = useCallback(l => {
@@ -185,7 +197,6 @@ export default function App() {
       { id: "home",         icon: "home",      label: "Home" },
       { id: "leads",        icon: "target",    label: "Leads" + (leads.length ? " (" + leads.length + ")" : "") },
       { id: "clients",      icon: "users",     label: "Clients" + (clients.length ? " (" + clients.length + ")" : "") },
-      { id: "community",    icon: "globe",     label: "Community" },
       { id: "tools",        icon: "tool",      label: "Tools" },
       { id: "analytics",    icon: "bar",       label: "Analytics" },
       { id: "history",      icon: "clock",     label: "History" },
@@ -266,7 +277,6 @@ export default function App() {
           {NAV.map(item => (
             <button key={item.id} className={"nav-btn" + (tab === item.id ? " on" : "")} onClick={() => setTab(item.id)} style={{ overflow: "hidden" }}>
               <I n={item.icon} s={14} /><span className="nav-label" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
-              {item.id === "community" && <span className="nav-label" style={{ marginLeft: "auto", fontSize: 9, background: "rgba(198,241,53,.15)", color: "var(--lime)", padding: "1px 5px", borderRadius: 20, fontWeight: 700, flexShrink: 0 }}>NEW</span>}
             </button>
           ))}
         </nav>
@@ -290,7 +300,6 @@ export default function App() {
         {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} />}
         {tab === "leads"        && <LeadsPage user={user} leads={leads} onUpdate={updLead} onDelete={delLead} onSearch={openSearch} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "clients"      && <ClientsPage clients={clients} leads={leads} onAdd={addClient} onUpdate={updClient} onDelete={delClient} onNav={setTab} />}
-        {tab === "community"    && <CommunityPage user={user} onGoSettings={() => setTab("settings")} onNav={setTab} />}
         {tab === "tools"        && <ToolsPage user={user} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "analytics"    && <AnalyticsPage leads={leads} clients={clients} onNav={setTab} />}
         {tab === "history"      && <HistoryPage user={user} onNav={setTab} />}
@@ -305,7 +314,7 @@ export default function App() {
       <button className="mob-fab" onClick={openSearch}><I n="search" s={16} c="#0c0e13" />Scan</button>
 
       <nav className="bottom-nav">
-        {[{id:"home",icon:"home",label:"Home"},{id:"leads",icon:"target",label:"Leads"},{id:"community",icon:"globe",label:"Community"},{id:"tools",icon:"tool",label:"Tools"}].map(item => (
+        {[{id:"home",icon:"home",label:"Home"},{id:"leads",icon:"target",label:"Leads"},{id:"tools",icon:"tool",label:"Tools"},{id:"analytics",icon:"bar",label:"Analytics"}].map(item => (
           <button key={item.id} className={"bnav-btn" + (tab === item.id ? " on" : "")} onClick={() => setTab(item.id)}>
             <I n={item.icon} s={item.id === tab ? 20 : 18} c={tab === item.id ? "var(--lime)" : "var(--txt3)"} /><span>{item.label}</span>
           </button>

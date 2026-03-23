@@ -276,9 +276,9 @@ export default function LandingPage({ onSignup, onLogin }) {
           <span style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:14 }}>Zen<span style={{ color:"var(--lime)" }}>vylo</span></span>
         </div>
         <div style={{ display:"flex",gap:24 }}>
-          {[["Features","#land-features",""],["Pricing","#land-pricing",""],["Community","#land-features","community"],["Sign In","","signin"]].map(([label,href,action])=>(
+          {[["Features","#land-features",""],["Pricing","#land-pricing",""],["Support","#land-features",""],["Sign In","","signin"]].map(([label,href,action])=>(
             <a key={label} href={href||"#"}
-              onClick={e=>{e.preventDefault();if(action==="signin")onLogin();else if(action==="community")onSignup();else if(href)document.getElementById(href.slice(1))?.scrollIntoView({behavior:"smooth"});}}
+              onClick={e=>{e.preventDefault();if(action==="signin")onLogin();else if(href)document.getElementById(href.slice(1))?.scrollIntoView({behavior:"smooth"});}}
               style={{ fontSize:12,color:"var(--txt3)",textDecoration:"none",cursor:"pointer" }}>
               {label}
             </a>

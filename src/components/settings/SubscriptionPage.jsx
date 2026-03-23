@@ -191,7 +191,7 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
       <div className="card" style={{ padding: "16px 20px", background: "rgba(61,142,248,.04)", border: "1.5px solid rgba(61,142,248,.15)" }}>
         <div style={{ fontSize: 13, color: "var(--blue)", fontWeight: 700, marginBottom: 4 }}>All plans include:</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(180px,100%),1fr))", gap: 6 }}>
-          {["Lead deduplication — your leads are exclusive", "Profitability calculator", "Community access", "Mobile-friendly dashboard"].map(f => (
+          {["Lead deduplication — your leads are exclusive", "Profitability calculator", "Scan history & analytics", "Mobile-friendly dashboard"].map(f => (
             <div key={f} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: 12, color: "var(--txt2)" }}>
               <I n="check" s={11} c="var(--blue)" style={{ marginTop: 1, flexShrink: 0 }} />{f}
             </div>
