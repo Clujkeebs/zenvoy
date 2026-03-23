@@ -72,13 +72,18 @@ export async function signIn({ email, password }) {
 
 // ─── User / Profile ───────────────────────────────────
 export async function getUser(email) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('email', email)
-    .single()
-  if (error || !data) return null
-  return toCamel(data)
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle()
+    if (error || !data) return null
+    return toCamel(data)
+  } catch (e) {
+    console.error('getUser error:', e.message)
+    return null
+  }
 }
 
 export async function saveUser(email, updates) {

@@ -1,0 +1,21 @@
+# Zenvylo — AI Lead Scanner
+# https://zenvylo.com
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /functions/
+
+# Sitemaps
+Sitemap: https://zenvylo.com/sitemap.xml
+
+# Crawl-delay for politeness
+Crawl-delay: 1
+
+# Google specific
+User-agent: Googlebot
+Allow: /
+
+# Bing specific
+User-agent: Bingbot
+Allow: /

@@ -1,4 +1,4 @@
-# Zenvoy 3.2 — Supabase Migration
+# Zenvylo 3.2 — Supabase Migration
 
 ## What Changed
 
@@ -64,7 +64,7 @@ Old: `localStorage.setItem("pass", plaintext)` → compare on login
 New: `supabase.auth.signUp()` → bcrypt hashing → JWT session → RLS
 
 The signup trigger automatically creates a `profiles` row with the
-user's metadata (name, country, etc.) and assigns `admin@zenvoy.com`
+user's metadata (name, country, etc.) and assigns `admin@zenvylo.com`
 the admin role.
 
 ## What Still Uses localStorage

@@ -1,29 +1,58 @@
 import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
-import { PLANS, PLAN_ORDER, getScansLeft } from '../../constants/plans'
+import { PLANS, PLAN_ORDER, getScansLeft, SCAN_PACKS, getBonusScans } from '../../constants/plans'
 import { startTrial, isTrialActive, getTrialDaysLeft } from '../../utils/trial'
 import { getFreeScansLeft, FREE_SCAN_LIMIT } from '../../utils/scanQuota'
+import { supabase } from '../../lib/supabase'
 import * as DB from '../../utils/db'
 const I = Icon
 
 export default function SubscriptionPage({ user, onUpdate, onNav }) {
   const [showEnterprise, setShowEnterprise] = useState(false)
+  const [loading, setLoading] = useState(null) // planId being loaded
 
-  const upgradePlan = (planId) => {
+  const upgradePlan = async (planId) => {
     const plan = PLANS[planId]
     if (!plan) return
     if (plan.contactOnly) { setShowEnterprise(true); return }
 
-    let u
-    if (planId === "pro" && plan.trialDays && !user.trialEnd) {
-      // Start Pro trial
-      u = startTrial(user)
-    } else {
-      u = { ...user, plan: planId, scansUsed: 0 }
+    // Free plan — just downgrade locally
+    if (planId === "free") {
+      const u = { ...user, plan: "free", scansUsed: 0 }
+      DB.saveUser(user.email, u)
+      onUpdate(u)
+      return
     }
-    DB.saveUser(user.email, u)
-    onUpdate(u)
+
+    // Paid plans — redirect to Stripe Checkout
+    setLoading(planId)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(
+        import.meta.env.VITE_SUPABASE_URL + "/functions/v1/stripe-checkout",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + session?.access_token,
+          },
+          body: JSON.stringify({
+            plan: planId,
+            return_url: window.location.origin + window.location.pathname,
+          }),
+        }
+      )
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url // redirect to Stripe
+      } else {
+        alert(data.error || "Could not start checkout. Try again.")
+      }
+    } catch (e) {
+      alert("Checkout error: " + e.message)
+    }
+    setLoading(null)
   }
 
   const currentPlan = user.plan || "free"
@@ -42,8 +71,8 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
         <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
           For enterprise access, contact us at
         </p>
-        <a href="mailto:support@zenvoy.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
-          support@zenvoy.com
+        <a href="mailto:support@zenvylo.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
+          support@zenvylo.com
         </a>
         <div style={{ marginTop: 24 }}>
           <button className="btn btn-ghost" onClick={() => setShowEnterprise(false)}>
@@ -91,15 +120,72 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
               {pid === "pro" && !isCurrent && <div style={{ fontSize: 11, color: "var(--purple)", marginTop: 6, fontWeight: 600 }}>🎁 7-day free trial included</div>}
               <button className={"btn " + (isCurrent ? "btn-ghost" : p.best ? "btn-lime" : "btn-dark")}
                 style={{ marginTop: 11, width: "100%", justifyContent: "center", fontSize: 12, padding: "9px" }}
-                disabled={isCurrent} onClick={() => upgradePlan(pid)}>
-                {isCurrent ? "Current Plan ✓"
+                disabled={isCurrent || loading === pid} onClick={() => upgradePlan(pid)}>
+                {loading === pid ? "Redirecting to Stripe…"
+                  : isCurrent ? "Current Plan ✓"
                   : isContact ? "Contact Sales"
-                  : pid === "pro" && !user.trialEnd ? "Start 7-Day Free Trial"
+                  : pid === "pro" ? "Start 7-Day Free Trial"
                   : "Switch to " + p.name}
               </button>
             </div>
           )
         })}
+      </div>
+
+      {getBonusScans(user) > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(198,241,53,.04)", border: "1.5px solid rgba(198,241,53,.15)", borderRadius: 9, marginBottom: 16 }}>
+          <I n="zap" s={14} c="var(--lime)" />
+          <span style={{ fontSize: 13, color: "var(--txt2)" }}>
+            You have <strong style={{ color: "var(--lime)" }}>{getBonusScans(user)} bonus scans</strong> from scan packs (never expire)
+          </span>
+        </div>
+      )}
+
+      <div style={{ marginBottom: 20 }}>
+        <h3 style={{ fontFamily: "var(--fh)", fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Need more scans?</h3>
+        <p style={{ color: "var(--txt3)", fontSize: 12, marginBottom: 12 }}>One-time purchase. Never expire. Stack on top of any plan.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(160px,100%),1fr))", gap: 10 }}>
+          {SCAN_PACKS.map(pk => (
+            <div key={pk.id} style={{
+              position: "relative", borderRadius: 10, padding: "14px 16px",
+              border: pk.best ? "2px solid var(--lime)" : "1.5px solid var(--brd)",
+              background: pk.best ? "rgba(198,241,53,.03)" : "var(--s2)",
+            }}>
+              {pk.best && <div style={{ position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", background: "var(--lime)", color: "#0c0e13", fontSize: 9, fontWeight: 900, padding: "2px 8px", borderRadius: 20, whiteSpace: "nowrap" }}>BEST VALUE</div>}
+              <div style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 15, marginBottom: 2 }}>{pk.label}</div>
+              <div style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 20 }}>
+                ${pk.price}<span style={{ fontSize: 11, fontWeight: 400, color: "var(--txt3)" }}> · ${pk.perScan}/scan</span>
+              </div>
+              {pk.savings && <div style={{ fontSize: 11, color: "var(--green)", fontWeight: 700, marginTop: 2 }}>{pk.savings}</div>}
+              <button className={"btn " + (pk.best ? "btn-lime" : "btn-dark")}
+                style={{ marginTop: 10, width: "100%", justifyContent: "center", fontSize: 12, padding: "8px" }}
+                disabled={loading === pk.id}
+                onClick={async () => {
+                  setLoading(pk.id)
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession()
+                    const res = await fetch(
+                      import.meta.env.VITE_SUPABASE_URL + "/functions/v1/stripe-checkout",
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session?.access_token },
+                        body: JSON.stringify({ pack: pk.id, return_url: window.location.origin + window.location.pathname }),
+                      }
+                    )
+                    const data = await res.json()
+                    if (data.url) window.location.href = data.url
+                    else alert(data.error || "Could not start checkout.")
+                  } catch (e) { alert("Error: " + e.message) }
+                  setLoading(null)
+                }}>
+                {loading === pk.id ? "Redirecting…" : "Buy " + pk.label}
+              </button>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: 11, color: "var(--txt3)", marginTop: 8, fontStyle: "italic" }}>
+          Tip: Subscriptions are always the best deal — Starter gives you 20 scans for just $0.45/scan.
+        </p>
       </div>
 
       <div className="card" style={{ padding: "16px 20px", background: "rgba(61,142,248,.04)", border: "1.5px solid rgba(61,142,248,.15)" }}>

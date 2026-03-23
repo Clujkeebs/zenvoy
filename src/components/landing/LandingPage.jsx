@@ -17,7 +17,7 @@ export default function LandingPage({ onSignup, onLogin }) {
 
   const FAQ = [
     {q:"How does the lead scanner actually work?", a:"You choose a service you sell (e.g. Web Design, SEO, Social Media) and a target location. Our AI generates realistic local small business leads with real-looking data: review counts, website speed scores, SSL status, phone numbers, and specific problems they have. It scores each lead 0-100 based on opportunity size, local demand, and competition level."},
-    {q:"Will the same business appear for two different users?", a:"No. Zenvoy maintains a global name registry. Once a business is discovered by any user, it is permanently blocked from appearing in any other user's scan results. This ensures every lead you get is yours alone."},
+    {q:"Will the same business appear for two different users?", a:"No. Zenvylo maintains a global name registry. Once a business is discovered by any user, it is permanently blocked from appearing in any other user's scan results. This ensures every lead you get is yours alone."},
     {q:"Do I need a credit card to start?", a:"No. The Starter plan is $9/month and the Pro plan comes with a 7-day free trial — no credit card required. You can run your first scans and decide if it's right for you before paying."},
     {q:"What countries can I target?", a:"Starter and Growth plans lock you to your home country (set at signup). Pro and Scale plans unlock all 35+ countries, so you can find clients anywhere in the world."},
     {q:"What are the AI features?", a:"Pro and Scale users get AI-generated: cold email drafts, phone call scripts, 30-60-90 day action roadmaps, full service proposals, pricing strategy advice, 30-second elevator pitches, and service package builders. Scale users also get full business audits and 5-email follow-up sequences."},
@@ -26,7 +26,7 @@ export default function LandingPage({ onSignup, onLogin }) {
 
   const FEATURES = [
     { icon:"target",  color:"var(--lime)",   title:"AI-Scored Leads",          body:"Every lead gets an opportunity score, demand score, competition index, and difficulty rating. Stop guessing — know exactly which clients to prioritize." },
-    { icon:"shield2", color:"var(--blue)",   title:"No Duplicate Leads",       body:"Our global registry ensures no two users ever get the same business. Your leads are yours alone — no competing against other Zenvoy users for the same prospect." },
+    { icon:"shield2", color:"var(--blue)",   title:"No Duplicate Leads",       body:"Our global registry ensures no two users ever get the same business. Your leads are yours alone — no competing against other Zenvylo users for the same prospect." },
     { icon:"ai",      color:"var(--purple)", title:"8 AI Writing Tools",        body:"Cold emails, call scripts, proposals, roadmaps, pricing strategies, elevator pitches, package builders, and follow-up sequences. Close deals faster with AI." },
     { icon:"dollar",  color:"var(--green)",  title:"Profitability Calculator",  body:"See your monthly profit per client instantly. Edit your rate, see costs, payback time, and yearly earnings — before you ever pitch." },
     { icon:"users",   color:"var(--amber)",  title:"Full CRM Built-in",         body:"Track every lead from 'new' to 'won'. Add clients, set follow-up dates, add notes, compare leads side-by-side, and export everything to CSV." },
@@ -61,7 +61,7 @@ export default function LandingPage({ onSignup, onLogin }) {
           <div style={{ width:32,height:32,background:"var(--lime)",borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
             <I n="target" s={16} c="#0c0e13"/>
           </div>
-          <span style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:17 }}>Zen<span style={{ color:"var(--lime)" }}>voy</span></span>
+          <span style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:17 }}>Zen<span style={{ color:"var(--lime)" }}>vylo</span></span>
         </div>
 
         <nav className="land-nav-links" aria-label="Page sections">
@@ -100,7 +100,7 @@ export default function LandingPage({ onSignup, onLogin }) {
             Find clients that<br/><span style={{ color:"var(--lime)" }}>desperately need</span> you.
           </h1>
           <p className="fu" style={{ fontSize:"clamp(15px,2vw,18px)",color:"var(--txt2)",lineHeight:1.7,maxWidth:580,margin:"0 auto 36px",animationDelay:".1s" }}>
-            Zenvoy finds local businesses that desperately need your services — slow sites, poor SEO, no social media. AI scores every lead and writes your outreach. You just close the deal.
+            Zenvylo finds local businesses that desperately need your services — slow sites, poor SEO, no social media. AI scores every lead and writes your outreach. You just close the deal.
           </p>
           <div className="fu" style={{ display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",animationDelay:".15s" }}>
             <button className="btn btn-lime" style={{ fontSize:16,padding:"15px 32px",borderRadius:12 }} onClick={onSignup}>
@@ -128,7 +128,7 @@ export default function LandingPage({ onSignup, onLogin }) {
               <div style={{ width:10,height:10,borderRadius:"50%",background:"#f54242" }}/>
               <div style={{ width:10,height:10,borderRadius:"50%",background:"#f5a623" }}/>
               <div style={{ width:10,height:10,borderRadius:"50%",background:"#34d47a" }}/>
-              <span style={{ fontSize:11,color:"var(--txt3)",marginLeft:8 }}>Zenvoy · Lead Dashboard</span>
+              <span style={{ fontSize:11,color:"var(--txt3)",marginLeft:8 }}>Zenvylo · Lead Dashboard</span>
             </div>
             <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:14 }}>
               {[{l:"Total Leads",v:"24",c:"var(--lime)"},{l:"Potential MRR",v:"$14,200",c:"var(--green)"},{l:"In Pipeline",v:"9",c:"var(--amber)"},{l:"Won",v:"3",c:"var(--blue)"}].map((s,i)=>(
@@ -187,7 +187,7 @@ export default function LandingPage({ onSignup, onLogin }) {
             <div>
               <div style={{ fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".1em",color:"var(--lime)",marginBottom:14 }}>How It Works</div>
               <h2 id="howitworks-heading" style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(20px,3.5vw,40px)",letterSpacing:"-.02em",marginBottom:12,lineHeight:1.2,wordBreak:"break-word" }}>From zero to paying client in 3 steps</h2>
-              <p style={{ color:"var(--txt2)",fontSize:14,lineHeight:1.7,marginBottom:32 }}>Zenvoy handles the hardest parts of finding clients: discovery, analysis, and first contact. You do the easy part — show up and close.</p>
+              <p style={{ color:"var(--txt2)",fontSize:14,lineHeight:1.7,marginBottom:32 }}>Zenvylo handles the hardest parts of finding clients: discovery, analysis, and first contact. You do the easy part — show up and close.</p>
               <button className="btn btn-lime" style={{ fontSize:14,padding:"13px 26px" }} onClick={onSignup}>Get Your First Leads →</button>
             </div>
             <div>
@@ -259,7 +259,7 @@ export default function LandingPage({ onSignup, onLogin }) {
             <I n="rocket" s={28} c="#0c0e13"/>
           </div>
           <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(28px,4vw,44px)",letterSpacing:"-.02em",marginBottom:14 }}>Start finding clients today</h2>
-          <p style={{ color:"var(--txt2)",fontSize:15,lineHeight:1.7,marginBottom:32 }}>3 free scans. No credit card. Cancel anytime. Join freelancers in 35+ countries using Zenvoy.</p>
+          <p style={{ color:"var(--txt2)",fontSize:15,lineHeight:1.7,marginBottom:32 }}>3 free scans. No credit card. Cancel anytime. Join freelancers in 35+ countries using Zenvylo.</p>
           <button className="btn btn-lime" style={{ fontSize:16,padding:"16px 40px",borderRadius:12 }} onClick={onSignup}>
             <I n="target" s={17}/>Get Started Free →
           </button>
@@ -273,7 +273,7 @@ export default function LandingPage({ onSignup, onLogin }) {
           <div style={{ width:24,height:24,background:"var(--lime)",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center" }}>
             <I n="target" s={12} c="#0c0e13"/>
           </div>
-          <span style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:14 }}>Zen<span style={{ color:"var(--lime)" }}>voy</span></span>
+          <span style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:14 }}>Zen<span style={{ color:"var(--lime)" }}>vylo</span></span>
         </div>
         <div style={{ display:"flex",gap:24 }}>
           {[["Features","#land-features",""],["Pricing","#land-pricing",""],["Community","#land-features","community"],["Sign In","","signin"]].map(([label,href,action])=>(
@@ -285,9 +285,9 @@ export default function LandingPage({ onSignup, onLogin }) {
           ))}
         </div>
         <div style={{ fontSize:12,color:"var(--txt3)" }}>
-          <span>© {new Date().getFullYear()} Zenvoy. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Zenvylo. All rights reserved.</span>
           <span style={{ margin:"0 8px" }}>·</span>
-          <a href="mailto:hello@zenvoy.com" style={{ color:"var(--txt3)" }}>hello@zenvoy.com</a>
+          <a href="mailto:hello@zenvylo.com" style={{ color:"var(--txt3)" }}>hello@zenvylo.com</a>
         </div>
       </footer>
       </main>

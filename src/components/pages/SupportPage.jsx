@@ -12,7 +12,7 @@ const FAQ = [
   { q: "How do I change my password or email?", a: "Go to Settings → Profile to update your name and service. Email changes require contacting support. Password reset is available from the login screen." },
   { q: "What does the opportunity score mean?", a: "Each lead gets a 0–100 score based on how much they need your service. Scores above 75 are high-priority leads — businesses with real, fixable problems like no website, slow speeds, or few reviews." },
   { q: "How is billing handled?", a: "We use Stripe for all payments. Your card is charged monthly on the day you subscribed. You can update payment info or cancel from the Stripe customer portal via Settings." },
-  { q: "What's the Enterprise plan?", a: "Enterprise is for teams and agencies that need custom limits, dedicated support, and SLAs. Contact support@zenvoy.com to discuss pricing." },
+  { q: "What's the Enterprise plan?", a: "Enterprise is for teams and agencies that need custom limits, dedicated support, and SLAs. Contact support@zenvylo.com to discuss pricing." },
   { q: "My scan failed — what do I do?", a: "AI scans occasionally fail due to network issues or API load. Try again — it usually works on the second attempt. If it keeps failing, check your internet connection or contact support." },
 ]
 
@@ -28,8 +28,8 @@ export default function SupportPage({ onNav }) {
         </div>
         <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.7 }}>
           Need help? Email us at{" "}
-          <a href="mailto:support@zenvoy.com" style={{ color: "var(--blue)", fontWeight: 700, textDecoration: "none" }}>
-            support@zenvoy.com
+          <a href="mailto:support@zenvylo.com" style={{ color: "var(--blue)", fontWeight: 700, textDecoration: "none" }}>
+            support@zenvylo.com
           </a>
         </p>
       </div>
