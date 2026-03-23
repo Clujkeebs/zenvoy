@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Icon from './icons/Icon'
-import { PLANS, getScansLeft, getScansLimit, getLeadsPerScan } from './constants/plans'
+import { PLANS, getScansLeft, getScansLimit, getLeadsPerScan, getBonusScans } from './constants/plans'
 import * as DB from './utils/db'
 import { checkTrialExpiry, isTrialActive, getTrialDaysLeft } from './utils/trial'
 import { getFreeScansLeft } from './utils/scanQuota'
@@ -164,11 +164,13 @@ export default function App() {
   const openSearch = useCallback(() => setShowSearch(true), [])
 
   // ─── Derived state ───────────────────────────────────
-  const scansLeft = useMemo(() => {
+  const planScansLeft = useMemo(() => {
     if (!user) return 0
     if (user.plan === "free") return getFreeScansLeft()
     return getScansLeft(user)
   }, [user, tab])
+  const bonusScans = useMemo(() => user ? getBonusScans(user) : 0, [user])
+  const scansLeft = planScansLeft + bonusScans
 
   const plan   = useMemo(() => user ? (PLANS[user.plan] || PLANS.free) : PLANS.free, [user])
   const leadsN = useMemo(() => user ? getLeadsPerScan(user) : 5, [user])
@@ -248,7 +250,7 @@ export default function App() {
               background: scansLeft === 0 ? "var(--red)" : scansLeft <= 2 ? "var(--amber)" : "var(--lime)",
               width: ((scansLeft / (user.plan === "free" ? 3 : getScansLimit(user))) * 100) + "%" }} />
           </div>
-          <div className="scan-detail" style={{ fontSize: 10, color: "var(--txt3)", marginTop: 4 }}>{leadsN} leads/scan · {plan.name}</div>
+          <div className="scan-detail" style={{ fontSize: 10, color: "var(--txt3)", marginTop: 4 }}>{leadsN} leads/scan · {plan.name}{bonusScans > 0 ? " + " + bonusScans + " bonus" : ""}</div>
         </div>
 
         <button className="btn btn-lime sidebar-search-btn" style={{ width: "100%", justifyContent: "center", marginBottom: 12, fontSize: 13, padding: "10px" }} onClick={openSearch}>
