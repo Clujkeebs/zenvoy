@@ -3,7 +3,6 @@ import Icon from './icons/Icon'
 import { PLANS, getScansLeft, getScansLimit, getLeadsPerScan, getBonusScans } from './constants/plans'
 import * as DB from './utils/db'
 import { checkTrialExpiry, isTrialActive, getTrialDaysLeft } from './utils/trial'
-import { getFreeScansLeft } from './utils/scanQuota'
 import { isAdmin } from './utils/roles'
 
 import LandingPage from './components/landing/LandingPage'
@@ -56,6 +55,12 @@ export default function App() {
           let u = await DB.getUser(email)
           if (u) {
             u = checkTrialExpiry(u)
+            // Monthly scan reset — check if we're in a new month
+            const resetDate = u.scansResetAt ? new Date(u.scansResetAt) : new Date(0)
+            const now = new Date()
+            if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
+              u = { ...u, scansUsed: 0, scansResetAt: now.toISOString() }
+            }
             DB.saveUser(email, u) // fire-and-forget
             setUser(u)
             const [lds, cls] = await Promise.all([
@@ -183,7 +188,6 @@ export default function App() {
   // ─── Derived state ───────────────────────────────────
   const planScansLeft = useMemo(() => {
     if (!user) return 0
-    if (user.plan === "free") return getFreeScansLeft()
     return getScansLeft(user)
   }, [user, tab])
   const bonusScans = useMemo(() => user ? getBonusScans(user) : 0, [user])

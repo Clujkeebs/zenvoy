@@ -401,3 +401,15 @@ export function onAuthStateChange(callback) {
   const { data: { subscription } } = supabase.auth.onAuthStateChange(callback)
   return subscription
 }
+
+// ─── Monthly Scan Reset ────────────────────────────────
+export async function checkMonthlyScanReset() {
+  const userId = await getUserId()
+  if (!userId) return null
+  const { data, error } = await supabase.rpc('check_and_reset_monthly_scans', { p_user_id: userId })
+  if (error) {
+    console.error('Monthly reset check error:', error.message)
+    return null
+  }
+  return data // returns the current scans_used (0 if just reset)
+}

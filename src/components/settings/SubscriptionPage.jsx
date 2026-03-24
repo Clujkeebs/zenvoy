@@ -1,9 +1,8 @@
 import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
-import { PLANS, PLAN_ORDER, getScansLeft, SCAN_PACKS, getBonusScans } from '../../constants/plans'
+import { PLANS, PLAN_ORDER, getScansLeft, SCAN_PACKS, getBonusScans, getScansLimit } from '../../constants/plans'
 import { startTrial, isTrialActive, getTrialDaysLeft } from '../../utils/trial'
-import { getFreeScansLeft, FREE_SCAN_LIMIT } from '../../utils/scanQuota'
 import { supabase } from '../../lib/supabase'
 import * as DB from '../../utils/db'
 const I = Icon
@@ -56,8 +55,7 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
   }
 
   const currentPlan = user.plan || "free"
-  const isFree = currentPlan === "free"
-  const scansRemaining = isFree ? getFreeScansLeft() : getScansLeft(user)
+  const scansRemaining = getScansLeft(user)
   const trialActive = isTrialActive(user)
   const trialDays = trialActive ? getTrialDaysLeft(user) : 0
 

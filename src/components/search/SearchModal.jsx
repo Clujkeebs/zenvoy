@@ -3,12 +3,10 @@ import Icon from '../../icons/Icon'
 import { SERVICES, COUNTRIES } from '../../constants/services'
 import { canMulti, getLeadsPerScan, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
 import { generateLeads } from '../../utils/ai'
-import { hasFreeScansLeft, getFreeScansLeft, incrementScanUsage, FREE_SCAN_LIMIT } from '../../utils/scanQuota'
 import * as DB from '../../utils/db'
 const I = Icon
 
 export default function SearchModal({ user, onClose, onDone }) {
-  const isFree = user.plan === "free"
   const [svc,      setSvc]      = useState(user.svc || "web");
   const [country,  setCountry]  = useState(canMulti(user) ? "" : (user.country || "United Kingdom"));
   const [city,     setCity]     = useState("");
@@ -17,18 +15,17 @@ export default function SearchModal({ user, onClose, onDone }) {
   const [log,      setLog]      = useState([]);
   const [err,      setErr]      = useState("");
   const logRef = useRef(null);
-  const planScansLeft = isFree ? getFreeScansLeft() : getScansLeft(user);
+  const planScansLeft = getScansLeft(user);
   const bonusScans = getBonusScans(user);
   const scansLeft = planScansLeft + bonusScans;
-  const scansTotal = isFree ? FREE_SCAN_LIMIT : getScansLimit(user);
+  const scansTotal = getScansLimit(user);
   const multiAllowed = canMulti(user);
 
   useEffect(()=>{ if(logRef.current) logRef.current.scrollTop=9999; },[log]);
 
   const run = async () => {
     if (!country) { setErr("Select a country first."); return; }
-    if (isFree && !hasFreeScansLeft() && bonusScans <= 0) { setErr("No scans left — upgrade your plan or buy a scan pack."); return; }
-    if (!isFree && planScansLeft <= 0 && bonusScans <= 0) { setErr("No scans left — upgrade or buy a scan pack in Settings."); return; }
+    if (scansLeft <= 0) { setErr("No scans left — upgrade your plan or buy a scan pack."); return; }
     setErr(""); setScanning(true); setLog([]);
     const svcObj = SERVICES.find(s=>s.id===svc);
     const loc = city ? city+", "+country : country;
@@ -57,24 +54,14 @@ export default function SearchModal({ user, onClose, onDone }) {
         leadCount:leads.length,
       }]);
       let updUser;
-      if (isFree) {
-        if (hasFreeScansLeft()) {
-          incrementScanUsage();
-          updUser = user;
-        } else {
-          // Use bonus scan
-          updUser = {...user, bonusScans: Math.max(0, (user.bonusScans||0) - 1)};
-          DB.saveUser(user.email, updUser);
-        }
+      if (planScansLeft > 0) {
+        // Use plan scan
+        updUser = {...user, scansUsed: (user.scansUsed || 0) + 1};
       } else {
-        if (planScansLeft > 0) {
-          updUser = {...user, scansUsed:(user.scansUsed||0)+1};
-        } else {
-          // Use bonus scan
-          updUser = {...user, bonusScans: Math.max(0, (user.bonusScans||0) - 1)};
-        }
-        DB.saveUser(user.email, updUser);
+        // Use bonus scan
+        updUser = {...user, bonusScans: Math.max(0, (user.bonusScans || 0) - 1)};
       }
+      DB.saveUser(user.email, updUser);
       onDone(leads, updUser);
     } catch(e) {
       const msg = e.message?.includes("JSON") || e.message?.includes("unexpected")
