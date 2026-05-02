@@ -5,7 +5,7 @@ import { PLANS, getScansLeft, getScansLimit, getLeadsPerScan, getBonusScans } fr
 import * as DB from './utils/db'
 import { supabase } from './lib/supabase'
 import { checkTrialExpiry, isTrialActive, getTrialDaysLeft } from './utils/trial'
-import { isAdmin } from './utils/roles'
+import { isAdmin, isOwner } from './utils/roles'
 import Analytics from './utils/analytics'
 
 import LandingPage from './components/landing/LandingPage'
@@ -338,24 +338,36 @@ export default function App() {
           </div>
         )}
 
-        <div className="sidebar-scan-pill" style={{ marginBottom: 11, padding: "8px 11px", borderRadius: 9,
-          background: scansLeft === 0 ? "rgba(245,66,66,.06)" : "var(--s2)",
-          border: "1.5px solid " + (scansLeft === 0 ? "rgba(245,66,66,.18)" : "var(--brd)") }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: scansLeft === 0 ? "var(--red)" : scansLeft <= 2 ? "var(--amber)" : "var(--txt2)" }}>
-              {scansLeft} scan{scansLeft !== 1 ? "s" : ""} left
-            </span>
-            <button style={{ fontSize: 10, fontWeight: 700, color: "var(--blue)", cursor: "pointer", background: "none", border: "none", flexShrink: 0 }} onClick={() => setTab("subscription")}>
-              {scansLeft === 0 ? "Upgrade!" : "↑"}
-            </button>
+        {isOwner(user) ? (
+          <div style={{ marginBottom: 11, padding: "8px 11px", borderRadius: 9,
+            background: "rgba(255,215,0,.06)", border: "1.5px solid rgba(255,215,0,.3)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 14 }}>👑</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#FFD700", letterSpacing: ".02em" }}>UNLIMITED</span>
+            </div>
+            <div style={{ height: 3, borderRadius: 2, background: "linear-gradient(90deg,#FFD700,#FFA500)", boxShadow: "0 0 6px rgba(255,215,0,.4)" }} />
+            <div style={{ fontSize: 10, color: "rgba(255,215,0,.6)", marginTop: 4 }}>∞ scans · ∞ leads · all features</div>
           </div>
-          <div style={{ height: 3, borderRadius: 2, background: "var(--s3)", overflow: "hidden" }}>
-            <div style={{ height: "100%", borderRadius: 2, transition: "width .4s",
-              background: scansLeft === 0 ? "var(--red)" : scansLeft <= 2 ? "var(--amber)" : "var(--lime)",
-              width: ((scansLeft / (user.plan === "free" ? 3 : getScansLimit(user))) * 100) + "%" }} />
+        ) : (
+          <div className="sidebar-scan-pill" style={{ marginBottom: 11, padding: "8px 11px", borderRadius: 9,
+            background: scansLeft === 0 ? "rgba(245,66,66,.06)" : "var(--s2)",
+            border: "1.5px solid " + (scansLeft === 0 ? "rgba(245,66,66,.18)" : "var(--brd)") }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: scansLeft === 0 ? "var(--red)" : scansLeft <= 2 ? "var(--amber)" : "var(--txt2)" }}>
+                {scansLeft} scan{scansLeft !== 1 ? "s" : ""} left
+              </span>
+              <button style={{ fontSize: 10, fontWeight: 700, color: "var(--blue)", cursor: "pointer", background: "none", border: "none", flexShrink: 0 }} onClick={() => setTab("subscription")}>
+                {scansLeft === 0 ? "Upgrade!" : "↑"}
+              </button>
+            </div>
+            <div style={{ height: 3, borderRadius: 2, background: "var(--s3)", overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 2, transition: "width .4s",
+                background: scansLeft === 0 ? "var(--red)" : scansLeft <= 2 ? "var(--amber)" : "var(--lime)",
+                width: ((scansLeft / (user.plan === "free" ? 3 : getScansLimit(user))) * 100) + "%" }} />
+            </div>
+            <div className="scan-detail" style={{ fontSize: 10, color: "var(--txt3)", marginTop: 4 }}>{leadsN} leads/scan · {plan.name}{bonusScans > 0 ? " + " + bonusScans + " bonus" : ""}</div>
           </div>
-          <div className="scan-detail" style={{ fontSize: 10, color: "var(--txt3)", marginTop: 4 }}>{leadsN} leads/scan · {plan.name}{bonusScans > 0 ? " + " + bonusScans + " bonus" : ""}</div>
-        </div>
+        )}
 
         <button className="btn btn-lime sidebar-search-btn" style={{ width: "100%", justifyContent: "center", marginBottom: 12, fontSize: 13, padding: "10px" }} onClick={openSearch}>
           <I n="search" s={14} /><span>New Search</span><span style={{ marginLeft: "auto", fontSize: 10, opacity: .55 }}>⌘K</span>
@@ -369,14 +381,26 @@ export default function App() {
           ))}
         </nav>
 
-        <div style={{ borderTop: "1.5px solid var(--brd)", paddingTop: 10, marginTop: 10 }}>
+        <div style={{ borderTop: isOwner(user) ? "1.5px solid rgba(255,215,0,.25)" : "1.5px solid var(--brd)", paddingTop: 10, marginTop: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginBottom: 5 }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: plan.best ? "var(--lime)" : "var(--s3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, color: plan.best ? "#0c0e13" : "var(--txt)", flexShrink: 0 }}>
-              {user.name?.charAt(0).toUpperCase()}
-            </div>
+            {isOwner(user) ? (
+              <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                background: "linear-gradient(135deg,#FFD700,#FFA500)",
+                boxShadow: "0 0 10px rgba(255,215,0,.45)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
+                👑
+              </div>
+            ) : (
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: plan.best ? "var(--lime)" : "var(--s3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, color: plan.best ? "#0c0e13" : "var(--txt)", flexShrink: 0 }}>
+                {user.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="sidebar-user-name" style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
-              <div className="plan-name" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: plan.color }}>{plan.name}{trialActive ? " (trial)" : ""}</div>
+              {isOwner(user)
+                ? <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: "#FFD700" }}>Owner</div>
+                : <div className="plan-name" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: plan.color }}>{plan.name}{trialActive ? " (trial)" : ""}</div>
+              }
             </div>
           </div>
           <button className="nav-btn" onClick={logout} style={{ fontSize: 12 }}><I n="logout" s={13} />Sign Out</button>
@@ -438,8 +462,15 @@ export default function App() {
             </div>
             <div style={{ borderTop:"1.5px solid var(--brd)",paddingTop:14,display:"flex",alignItems:"center",justifyContent:"space-between" }}>
               <div style={{ display:"flex",alignItems:"center",gap:9 }}>
-                <div style={{ width:34,height:34,borderRadius:"50%",background:plan.best?"var(--lime)":"var(--s3)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:14,color:plan.best?"#0c0e13":"var(--txt)" }}>{user.name?.charAt(0).toUpperCase()}</div>
-                <div><div style={{ fontSize:13,fontWeight:600 }}>{user.name}</div><div style={{ fontSize:11,color:plan.color,fontWeight:700,textTransform:"uppercase" }}>{plan.name}</div></div>
+                {isOwner(user) ? (
+                  <div style={{ width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,#FFD700,#FFA500)",boxShadow:"0 0 12px rgba(255,215,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18 }}>👑</div>
+                ) : (
+                  <div style={{ width:34,height:34,borderRadius:"50%",background:plan.best?"var(--lime)":"var(--s3)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:14,color:plan.best?"#0c0e13":"var(--txt)" }}>{user.name?.charAt(0).toUpperCase()}</div>
+                )}
+                <div>
+                  <div style={{ fontSize:13,fontWeight:600 }}>{user.name}</div>
+                  <div style={{ fontSize:11,color:isOwner(user)?"#FFD700":plan.color,fontWeight:700,textTransform:"uppercase" }}>{isOwner(user)?"Owner":plan.name}</div>
+                </div>
               </div>
               <button className="btn btn-ghost" style={{ fontSize:12,padding:"8px 14px" }} onClick={logout}><I n="logout" s={13} />Sign Out</button>
             </div>

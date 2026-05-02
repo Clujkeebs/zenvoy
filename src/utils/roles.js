@@ -1,24 +1,32 @@
 // ─── User Roles ────────────────────────────────────────
-// Roles: "user" | "moderator" | "admin"
-// Default admin account — change to your real email after domain setup
-export const DEFAULT_ADMIN_EMAIL = "admin@zenvylo.com"
+// Roles: "user" | "moderator" | "admin" | "owner"
+export const OWNER_EMAIL = "clujkeebs@aol.com"
+export const DEFAULT_ADMIN_EMAIL = OWNER_EMAIL
 
 export const ROLES = {
-  user: { label: "User", icon: null, color: "var(--txt2)" },
+  user:      { label: "User",      icon: null,      color: "var(--txt2)" },
   moderator: { label: "Moderator", icon: "shield2", color: "var(--blue)" },
-  admin: { label: "Admin", icon: "crown", color: "var(--amber)" },
+  admin:     { label: "Admin",     icon: "shield2", color: "var(--amber)" },
+  owner:     { label: "Owner",     icon: "crown",   color: "#FFD700" },
 }
 
 export function getRole(user) {
   return user?.role || "user"
 }
 
+// Only the one true owner
+export function isOwner(user) {
+  return getRole(user) === "owner"
+}
+
+// Admins + owner both have elevated access
 export function isAdmin(user) {
-  return getRole(user) === "admin"
+  const r = getRole(user)
+  return r === "admin" || r === "owner"
 }
 
 export function isModerator(user) {
-  return ["moderator", "admin"].includes(getRole(user))
+  return ["moderator", "admin", "owner"].includes(getRole(user))
 }
 
 export function canModerate(user) {
@@ -30,8 +38,8 @@ export function getRoleBadge(user) {
   return ROLES[role] || ROLES.user
 }
 
-// Returns role for a new signup based on email
+// New signups default to user; owner email gets owner role
 export function getDefaultRole(email) {
-  if (email === DEFAULT_ADMIN_EMAIL) return "admin"
+  if (email === OWNER_EMAIL) return "owner"
   return "user"
 }

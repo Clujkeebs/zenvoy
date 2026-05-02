@@ -4,7 +4,7 @@ import Icon from '../../icons/Icon'
 import Avatar from '../ui/Avatar'
 import RoleBadge from '../ui/RoleBadge'
 import { PLANS } from '../../constants/plans'
-import { isAdmin } from '../../utils/roles'
+import { isAdmin, isOwner } from '../../utils/roles'
 import { fmtDate } from '../../utils/helpers'
 import * as DB from '../../utils/db'
 const I = Icon
@@ -198,6 +198,8 @@ export default function AdminDashboard({ user, onNav }) {
     )
   }
 
+  const ownerView = isOwner(user)
+
   const TABS = [
     { id: "overview",   icon: "chart",  label: "Overview" },
     { id: "users",      icon: "users",  label: "Users",      count: users.length },
@@ -213,6 +215,31 @@ export default function AdminDashboard({ user, onNav }) {
         onBack={() => onNav("home")}
         onHome={() => onNav("home")}
       />
+
+      {/* Owner crown banner */}
+      {ownerView && (
+        <div style={{
+          marginBottom: 18, padding: "14px 18px", borderRadius: 12,
+          background: "linear-gradient(135deg, rgba(255,215,0,.09) 0%, rgba(255,165,0,.06) 100%)",
+          border: "1.5px solid rgba(255,215,0,.3)",
+          display: "flex", alignItems: "center", gap: 14,
+        }}>
+          <div style={{
+            width: 42, height: 42, borderRadius: "50%", flexShrink: 0,
+            background: "linear-gradient(135deg,#FFD700,#FFA500)",
+            boxShadow: "0 0 16px rgba(255,215,0,.5)",
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22,
+          }}>👑</div>
+          <div>
+            <div style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 15, color: "#FFD700", letterSpacing: "-.01em" }}>
+              You are the Owner
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,215,0,.6)", marginTop: 2 }}>
+              Full access · Unlimited everything · Only you can see this panel
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 20, flexWrap: "wrap" }}>
@@ -371,6 +398,7 @@ export default function AdminDashboard({ user, onNav }) {
                             <option value="user">User</option>
                             <option value="moderator">Mod</option>
                             <option value="admin">Admin</option>
+                            {/* owner role never shown — only set via DB */}
                           </select>
 
                           {/* Change plan */}

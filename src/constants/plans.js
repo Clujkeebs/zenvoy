@@ -43,13 +43,16 @@ export const SCAN_PACKS = [
 export const PLAN_ORDER = ["free","starter","growth","pro","scale","enterprise"]
 
 // ─── Plan Helpers ──────────────────────────────────────
-export const canAI = u => ["pro","scale","enterprise"].includes(u?.plan)
-export const canScale = u => ["scale","enterprise"].includes(u?.plan)
-export const getLeadsPerScan = u => PLANS[u?.plan]?.leadsPerScan || 5
-export const canMulti = u => ["pro","scale","enterprise"].includes(u?.plan)
-export const getScansLimit = u => PLANS[u?.plan]?.scans || 3
-export const getScansLeft = u => Math.max(0, getScansLimit(u) - (u?.scansUsed || 0))
-export const getBonusScans = u => u?.bonusScans || 0
-export const getTotalScansLeft = u => getScansLeft(u) + getBonusScans(u)
-export const isPaidPlan = u => u?.plan && u.plan !== "free"
-export const isEnterprise = u => u?.plan === "enterprise"
+// Owner (role === 'owner') gets unlimited everything
+const _isOwner = u => u?.role === "owner"
+
+export const canAI          = u => _isOwner(u) || ["pro","scale","enterprise"].includes(u?.plan)
+export const canScale       = u => _isOwner(u) || ["scale","enterprise"].includes(u?.plan)
+export const canMulti       = u => _isOwner(u) || ["pro","scale","enterprise"].includes(u?.plan)
+export const getLeadsPerScan = u => _isOwner(u) ? 9999 : (PLANS[u?.plan]?.leadsPerScan || 5)
+export const getScansLimit  = u => _isOwner(u) ? Infinity : (PLANS[u?.plan]?.scans || 3)
+export const getScansLeft   = u => _isOwner(u) ? Infinity : Math.max(0, getScansLimit(u) - (u?.scansUsed || 0))
+export const getBonusScans  = u => u?.bonusScans || 0
+export const getTotalScansLeft = u => _isOwner(u) ? Infinity : (getScansLeft(u) + getBonusScans(u))
+export const isPaidPlan     = u => _isOwner(u) || (u?.plan && u.plan !== "free")
+export const isEnterprise   = u => _isOwner(u) || u?.plan === "enterprise"
