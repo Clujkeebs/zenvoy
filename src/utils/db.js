@@ -51,34 +51,115 @@ export async function clearSession() {
   await supabase.auth.signOut()
 }
 
-// ─── Sign Up / Sign In (new) ───────────────────────────
-export async function signUp({ email, password, name, country, svc, currency, role }) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { name, country, svc, currency, role },
-      emailRedirectTo: window.location.origin,
-    }
-  })
-  if (error) throw error
-  return data
+// ─── Sign Up / Sign In (old password-based — DEPRECATED) ───
+// Use sendMagicLink instead for passwordless auth
+// These are kept for backwards compatibility only
+export async function signUp() {
+  throw new Error('Password auth is deprecated. Use sendMagicLink instead.')
 }
 
-export async function signIn({ email, password }) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+export async function signIn() {
+  throw new Error('Password auth is deprecated. Use sendMagicLink instead.')
+}
+
+// ─── Magic Link (passwordless) ─────────────────────────
+export async function sendMagicLink({ email, name, country, svc, currency, role }) {
+  const opts = {
+    shouldCreateUser: true,
+    emailRedirectTo: window.location.origin,
+  }
+  // Pass metadata for new-user profile creation (Supabase trigger picks this up)
+  if (name) {
+    opts.data = { name, country, svc, currency: currency || 'USD', role: role || 'user' }
+  }
+  const { error } = await supabase.auth.signInWithOtp({ email, options: opts })
   if (error) throw error
-  return data
+}
+
+// ─── Pending Referral (magic-link flow) ───────────────
+// Called in App.jsx after a fresh magic-link session is established.
+// Reads the ref code stored in localStorage before the link was sent,
+// applies the referral bonus, and clears the key.
+export async function processPendingRef(email) {
+  const refCode = localStorage.getItem('zv_pending_ref')
+  if (!refCode) return
+
+  const userId = await getUserId()
+  if (!userId) return
+
+  // Check if we already recorded a referrer for this user
+  const { data: row } = await supabase
+    .from('profiles')
+    .select('referred_by')
+    .eq('id', userId)
+    .maybeSingle()
+  if (row?.referred_by) {
+    localStorage.removeItem('zv_pending_ref')
+    return
+  }
+
+  localStorage.removeItem('zv_pending_ref')
+
+  // Fire-and-forget: apply bonus + record affiliate conversion
+  Promise.resolve().then(async () => {
+    try {
+      // ── Regular referral bonus (user ref code) ──────────────
+      const ref = await findUserByRef(refCode).catch(() => null)
+      if (ref?.id) {
+        await supabase.from('profiles')
+          .update({ referred_by: ref.id, bonus_scans: 5 })
+          .eq('id', userId).catch(() => {})
+        await supabase.rpc('increment_referral_count', { p_user_id: ref.id }).catch(() => {})
+      }
+
+      // ── Affiliate promo code ─────────────────────────────────
+      const aff = await findAffiliateByCode(refCode).catch(() => null)
+      if (aff) {
+        if (aff.type === 'scans') {
+          // Scan affiliate: credit +3 bonus scans to the affiliate's own profile
+          const { data: affProfile } = await supabase
+            .from('profiles').select('bonus_scans').eq('id', aff.userId).maybeSingle()
+          await supabase.from('profiles')
+            .update({ bonus_scans: (affProfile?.bonus_scans || 0) + 3 })
+            .eq('id', aff.userId).catch(() => {})
+          // Track signup + total scans earned on the affiliate row
+          const { data: cur } = await supabase
+            .from('affiliates').select('total_signups, scans_earned').eq('id', aff.id).single()
+          await supabase.from('affiliates').update({
+            total_signups: (cur?.total_signups || 0) + 1,
+            scans_earned:  (cur?.scans_earned  || 0) + 3,
+          }).eq('id', aff.id).catch(() => {})
+          // Still record the signup event (commission = 0) for the history table
+          recordAffiliateConversion({
+            affiliateId: aff.id, referredUserId: userId,
+            referredEmail: email, eventType: 'signup', plan: 'free',
+            amountUsd: 0, commissionUsd: 0,
+          }).catch(() => {})
+        } else {
+          // Payment affiliate: track commission conversion as before
+          recordAffiliateConversion({
+            affiliateId: aff.id, referredUserId: userId,
+            referredEmail: email, eventType: 'signup', plan: 'free',
+            amountUsd: 0, commissionUsd: 0,
+          }).catch(() => {})
+        }
+      }
+    } catch (_) {}
+  })
 }
 
 // ─── User / Profile ───────────────────────────────────
 export async function getUser(email) {
   try {
+    // Query by authenticated user ID (more secure, avoids RLS issues)
+    const userId = await getUserId()
+    if (!userId) return null
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('email', email)
-      .maybeSingle()
+      .eq('id', userId)
+      .single()
     if (error || !data) return null
     return toCamel(data)
   } catch (e) {
@@ -88,10 +169,14 @@ export async function getUser(email) {
 }
 
 export async function saveUser(email, updates) {
+  const userId = await getUserId()
+  if (!userId) return
+
   const row = toSnake(updates)
   delete row.pass
   delete row.id
-  const { error } = await supabase.from('profiles').update(row).eq('email', email)
+  delete row.email // don't change email
+  const { error } = await supabase.from('profiles').update(row).eq('id', userId)
   if (error) console.error('saveUser error:', error.message)
 }
 
@@ -105,12 +190,147 @@ export async function getAllUsers() {
 }
 
 export async function findUserByRef(code) {
-  const { data } = await supabase
-    .from('profiles')
+  // Uses SECURITY DEFINER RPC — returns only the referrer's id, no PII leak
+  if (!code) return null
+  const { data, error } = await supabase.rpc('lookup_referrer', { p_code: code })
+  if (error || !data) return null
+  return { id: data }
+}
+
+// ─── Affiliate System ─────────────────────────────
+
+export async function getMyAffiliateRecord() {
+  const userId = await getUserId()
+  if (!userId) return null
+  const { data, error } = await supabase
+    .from('affiliates')
     .select('*')
-    .eq('ref_code', code)
-    .single()
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) { console.error('getMyAffiliateRecord error:', error.message); return null }
   return data ? toCamel(data) : null
+}
+
+export async function getMyAffiliateConversions() {
+  const userId = await getUserId()
+  if (!userId) return []
+  // First get the affiliate record id
+  const { data: aff } = await supabase
+    .from('affiliates')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!aff) return []
+  const { data, error } = await supabase
+    .from('affiliate_conversions')
+    .select('*')
+    .eq('affiliate_id', aff.id)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('getMyAffiliateConversions error:', error.message); return [] }
+  return (data || []).map(toCamel)
+}
+
+export async function getAllAffiliates() {
+  const { data, error } = await supabase
+    .from('affiliates')
+    .select('*')
+    .order('total_earned', { ascending: false })
+  if (error) { console.error('getAllAffiliates error:', error.message); return [] }
+  return (data || []).map(toCamel)
+}
+
+export async function createAffiliate(record) {
+  const row = toSnake(record)
+  const { data, error } = await supabase.from('affiliates').insert(row).select().single()
+  if (error) throw new Error(error.message)
+  return toCamel(data)
+}
+
+export async function updateAffiliate(id, updates) {
+  const row = toSnake(updates)
+  const { error } = await supabase.from('affiliates').update(row).eq('id', id)
+  if (error) console.error('updateAffiliate error:', error.message)
+}
+
+export async function findAffiliateByCode(code) {
+  if (!code) return null
+  const { data } = await supabase
+    .from('affiliates')
+    .select('*')
+    .eq('promo_code', code.toUpperCase())
+    .eq('status', 'active')
+    .maybeSingle()
+  return data ? toCamel(data) : null
+}
+
+export async function recordAffiliateConversion({ affiliateId, referredUserId, referredEmail, eventType, plan, amountUsd, commissionUsd }) {
+  const row = {
+    affiliate_id: affiliateId,
+    referred_user_id: referredUserId,
+    referred_email: referredEmail,
+    event_type: eventType,
+    plan,
+    amount_usd: amountUsd,
+    commission_usd: commissionUsd,
+    status: 'pending',
+  }
+  const { error } = await supabase.from('affiliate_conversions').insert(row)
+  if (error) console.error('recordAffiliateConversion error:', error.message)
+  // Update affiliate totals
+  if (!error) {
+    if (eventType === 'signup') {
+      // Increment signup count via raw SQL update
+      const { data: cur } = await supabase
+        .from('affiliates').select('total_signups').eq('id', affiliateId).single()
+      if (cur) {
+        await supabase.from('affiliates')
+          .update({ total_signups: (cur.total_signups || 0) + 1 })
+          .eq('id', affiliateId)
+      }
+    }
+    if (eventType === 'upgrade' || eventType === 'rebill') {
+      await supabase.rpc('add_affiliate_earnings', {
+        p_affiliate_id: affiliateId,
+        p_amount: commissionUsd || 0,
+      })
+    }
+  }
+}
+
+// ─── Referral System ───────────────────────────────
+export async function getReferrals(_email) {
+  const userId = await getUserId()
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('user_referrals')
+    .select('*')
+    .eq('referrer_id', userId)
+    .order('referred_at', { ascending: false })
+  if (error) { console.error('getReferrals error:', error.message); return [] }
+  return (data || []).map(toCamel)
+}
+
+export async function signUpWithRef(signupData, refCode) {
+  // Sign up normally
+  const user = await signUp(signupData)
+  if (!user?.user?.id || !refCode) return user
+
+  // Find the referrer by code
+  const referrer = await findUserByRef(refCode)
+  if (!referrer?.id) return user
+
+  // Save the referred_by link
+  const { error } = await supabase
+    .from('profiles')
+    .update({ referred_by: referrer.id })
+    .eq('id', user.user.id)
+
+  if (!error) {
+    // Increment referrer's referral count
+    await supabase.rpc('increment_referral_count', { p_user_id: referrer.id })
+  }
+
+  return user
 }
 
 // ─── Leads ─────────────────────────────────────────────
@@ -374,10 +594,13 @@ export async function resolveReport(reportId) {
 
 // ─── Profile Images ────────────────────────────────────
 export async function getProfileImage(email) {
+  const userId = await getUserId()
+  if (!userId) return null
+
   const { data } = await supabase
     .from('profiles')
     .select('profile_image_url')
-    .eq('email', email)
+    .eq('id', userId)
     .single()
   return data?.profile_image_url || null
 }

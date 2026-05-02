@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import Icon from './icons/Icon'
 import { PLANS, getScansLeft, getScansLimit, getLeadsPerScan, getBonusScans } from './constants/plans'
 import * as DB from './utils/db'
+import { supabase } from './lib/supabase'
 import { checkTrialExpiry, isTrialActive, getTrialDaysLeft } from './utils/trial'
 import { isAdmin } from './utils/roles'
+import Analytics from './utils/analytics'
 
 import LandingPage from './components/landing/LandingPage'
 import AuthModal from './components/auth/AuthModal'
@@ -23,6 +26,7 @@ import SettingsPage from './components/settings/SettingsPage'
 import EnterprisePage from './components/pages/EnterprisePage'
 import SupportPage from './components/pages/SupportPage'
 import AdminDashboard from './components/admin/AdminDashboard'
+import AffiliateDashboard from './components/affiliate/AffiliateDashboard'
 
 const I = Icon
 
@@ -48,44 +52,105 @@ export default function App() {
 
   // ─── Load session on mount (async) ───────────────────
   useEffect(() => {
-    async function init() {
+    let mounted = true
+
+    // Core session bootstrap — shared by init() and the auth-state listener
+    async function bootSession(session) {
+      if (!session || !mounted) return false
+      const email = session.user?.email
+      if (!email) return false
+
       try {
-        const email = await DB.getSession()
-        if (email) {
-          let u = await DB.getUser(email)
-          if (u) {
-            u = checkTrialExpiry(u)
-            // Monthly scan reset — check if we're in a new month
-            const resetDate = u.scansResetAt ? new Date(u.scansResetAt) : new Date(0)
-            const now = new Date()
-            if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
-              u = { ...u, scansUsed: 0, scansResetAt: now.toISOString() }
-            }
-            DB.saveUser(email, u) // fire-and-forget
-            setUser(u)
-            const [lds, cls] = await Promise.all([
-              DB.getLeads(email),
-              DB.getClients(email),
-            ])
+        // For fresh magic-link users the DB trigger may still be in-flight —
+        // retry up to ~2 s before giving up.
+        let u = await DB.getUser(email)
+        if (!u) {
+          await new Promise(r => setTimeout(r, 700))
+          u = await DB.getUser(email)
+        }
+        if (!u) {
+          await new Promise(r => setTimeout(r, 1200))
+          u = await DB.getUser(email)
+        }
+        if (!u) {
+          if (mounted) await DB.clearSession()
+          return false
+        }
+
+        u = checkTrialExpiry(u)
+        // Monthly scan reset
+        const resetDate = u.scansResetAt ? new Date(u.scansResetAt) : new Date(0)
+        const now = new Date()
+        if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
+          u = { ...u, scansUsed: 0, scansResetAt: now.toISOString() }
+        }
+        DB.saveUser(email, u) // fire-and-forget
+
+        // Process any referral stored before the magic link was sent
+        DB.processPendingRef(email).catch(() => {})
+
+        // Analytics identify
+        Analytics.identify(email, { plan: u.plan, country: u.country, name: u.name })
+        const isNewUser = u.createdAt && (Date.now() - new Date(u.createdAt).getTime() < 120_000)
+        if (isNewUser) Analytics.signupCompleted(u.plan, u.country)
+        else Analytics.loginCompleted()
+
+        if (mounted) {
+          setUser(u)
+          const [lds, cls] = await Promise.all([DB.getLeads(email), DB.getClients(email)])
+          if (mounted) {
             setLeads(lds)
             setClients(cls)
             if (!u.onboarded) setShowBoard(true)
-          } else {
-            // Stale session (user deleted or profile missing) — sign out cleanly
-            await DB.clearSession()
           }
         }
+        return true
+      } catch (e) {
+        console.error('Session boot error:', e)
+        if (mounted) try { await DB.clearSession() } catch (_) {}
+        return false
+      }
+    }
+
+    async function init() {
+      try {
+        // getSession() in Supabase v2 processes the URL hash (magic-link token)
+        // synchronously during client construction, so this call is reliable.
+        const { data: { session } } = await supabase.auth.getSession()
+        await bootSession(session)
       } catch (e) {
         console.error('Init error:', e)
-        // If anything fails during init, clear the bad session
         try { await DB.clearSession() } catch (_) {}
       }
-      setLoading(false)
+      if (mounted) setLoading(false)
     }
+
     init()
+
+    // Safety net: if the magic-link token resolves *after* init() has already
+    // run without a session (can happen on very slow connections), pick it up here.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session && mounted) {
+        // Only act if we haven't already loaded a user
+        setUser(prev => {
+          if (prev) return prev // already signed in — nothing to do
+          // Kick off boot in the background; flip loading off when done
+          bootSession(session).then(() => { if (mounted) setLoading(false) })
+          return prev
+        })
+      }
+      if (event === 'SIGNED_OUT' && mounted) {
+        setUser(null); setLeads([]); setClients([]); setLoading(false)
+      }
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
-  // Page title
+  // Page title + analytics page tracking
   const PAGE_TITLES = useMemo(() => ({
     home: "Dashboard — Zenvylo", leads: "My Leads — Zenvylo",
     clients: "Clients — Zenvylo", community: "Community — Zenvylo",
@@ -94,7 +159,11 @@ export default function App() {
     settings: "Settings — Zenvylo", enterprise: "Enterprise — Zenvylo",
     support: "Support — Zenvylo", admin: "Admin — Zenvylo",
   }), [])
-  useEffect(() => { document.title = PAGE_TITLES[tab] || "Zenvylo — AI Lead Scanner" }, [tab, PAGE_TITLES])
+  useEffect(() => {
+    const title = PAGE_TITLES[tab] || "Zenvylo — AI Lead Scanner"
+    document.title = title
+    if (user) Analytics.page(tab, title)
+  }, [tab, PAGE_TITLES, user])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -107,12 +176,14 @@ export default function App() {
   }, [user])
 
   // ─── Auth callbacks ──────────────────────────────────
-  const auth = useCallback(async (u) => {
+  // NOTE: with magic-link auth this is typically NOT called; App.jsx's init()
+  // handles session bootstrap directly. Kept for any future direct-auth path.
+  const auth = useCallback(async (u, isNew = false) => {
     setUser(u)
-    const [lds, cls] = await Promise.all([
-      DB.getLeads(u.email),
-      DB.getClients(u.email),
-    ])
+    Analytics.identify(u.email, { plan: u.plan, country: u.country, name: u.name })
+    if (isNew) Analytics.signupCompleted(u.plan, u.country)
+    else Analytics.loginCompleted()
+    const [lds, cls] = await Promise.all([DB.getLeads(u.email), DB.getClients(u.email)])
     setLeads(lds)
     setClients(cls)
     setAuthMode(null)
@@ -120,11 +191,13 @@ export default function App() {
   }, [])
 
   const logout = useCallback(async () => {
+    Analytics.logoutCompleted()
     await DB.clearSession()
     setUser(null); setLeads([]); setClients([]); setTab("home")
   }, [])
 
   const doneBoard = useCallback(() => {
+    Analytics.onboardingCompleted()
     const u = { ...user, onboarded: true }
     DB.saveUser(user.email, u) // fire-and-forget
     setUser(u); setShowBoard(false)
@@ -133,6 +206,7 @@ export default function App() {
   // ─── Lead / Client mutations ─────────────────────────
   // State updates are instant, Supabase syncs in background
   const handleLeads = useCallback(async (newLeads, updUser) => {
+    Analytics.scanCompleted(newLeads[0]?.serviceId || 'unknown', newLeads.length)
     setLeads(prev => [...newLeads, ...prev])
     setUser(updUser)
     setShowSearch(false)
@@ -182,8 +256,14 @@ export default function App() {
     showToast("Removed.")
   }, [showToast])
 
-  const handleUpgrade = useCallback((feature, plan) => setUpgradeFor({ feature, plan }), [])
-  const openSearch = useCallback(() => setShowSearch(true), [])
+  const handleUpgrade = useCallback((feature, plan) => {
+    Analytics.upgradeModalSeen(feature, plan)
+    setUpgradeFor({ feature, plan })
+  }, [])
+  const openSearch = useCallback(() => {
+    Analytics.searchOpened()
+    setShowSearch(true)
+  }, [])
 
   // ─── Derived state ───────────────────────────────────
   const planScansLeft = useMemo(() => {
@@ -209,6 +289,8 @@ export default function App() {
       { id: "settings",     icon: "settings",  label: "Settings" },
     ]
     if (isAdmin(user)) items.push({ id: "admin", icon: "shield2", label: "Admin" })
+    // Show affiliate dashboard if user has an affiliate record (set by admin)
+    if (user?.affiliateId || user?.isAffiliate) items.push({ id: "affiliate", icon: "dollar", label: "Affiliate" })
     return items
   }, [leads.length, clients.length, user])
 
@@ -236,8 +318,10 @@ export default function App() {
   const trialDays = trialActive ? getTrialDaysLeft(user) : 0
 
   return (
-    <div className="app-shell">
-      <aside className="app-sidebar">
+    <>
+      <VercelAnalytics />
+      <div className="app-shell">
+        <aside className="app-sidebar">
         <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "4px 8px", marginBottom: 16 }}>
           <div style={{ width: 30, height: 30, background: "var(--lime)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <I n="target" s={15} c="#0c0e13" />
@@ -312,6 +396,7 @@ export default function App() {
         {tab === "enterprise"   && <EnterprisePage onNav={setTab} />}
         {tab === "support"      && <SupportPage onNav={setTab} />}
         {tab === "admin"        && <AdminDashboard user={user} onNav={setTab} />}
+        {tab === "affiliate"    && <AffiliateDashboard user={user} />}
         </div>
       </main>
 
@@ -366,6 +451,7 @@ export default function App() {
       {showBoard && <OnboardOverlay onDone={doneBoard} />}
       {upgradeFor && <UpgradeModal feature={upgradeFor.feature} requiredPlan={upgradeFor.plan} onClose={() => setUpgradeFor(null)} onGoSettings={() => { setTab("settings"); setUpgradeFor(null) }} />}
       <Toast msg={toast} />
-    </div>
+      </div>
+    </>
   )
 }

@@ -1,0 +1,6 @@
+# Netlify redirects
+# Blog static pages — serve as-is (no redirect needed, they're real files)
+/blog/*   /blog/:splat  200
+
+# SPA fallback — everything else goes to the React app
+/*  /index.html  200

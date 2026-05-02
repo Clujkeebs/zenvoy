@@ -1,302 +1,278 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Icon from '../../icons/Icon'
-import PasswordInput from '../ui/PasswordInput'
-import { COUNTRIES, SERVICES, CURRENCIES } from '../../constants/services'
-import { supabase } from '../../lib/supabase'
+import { COUNTRIES } from '../../constants/services'
 import * as DB from '../../utils/db'
-import { mkRefCode } from '../../utils/helpers'
 import { getDefaultRole } from '../../utils/roles'
 const I = Icon
 
 export default function Auth({ onAuth, initialMode = "login" }) {
-  const [mode,     setMode]     = useState(initialMode)
-  const [name,     setName]     = useState("")
-  const [email,    setEmail]    = useState("")
-  const [pass,     setPass]     = useState("")
-  const [pass2,    setPass2]    = useState("")
-  const [country,  setCountry]  = useState("")
-  const [currency, setCurrency] = useState("USD")
-  const [svc,      setSvc]      = useState("web")
-  const [refCode,  setRefCode]  = useState("")
-  const [err,      setErr]      = useState("")
-  const [busy,     setBusy]     = useState(false)
-  const [step,     setStep]     = useState(1)
-  const [resetSent, setResetSent] = useState(false)
-  const [confirmSent, setConfirmSent] = useState(false)
+  const [mode, setMode]       = useState(initialMode)
+  const [name, setName]       = useState("")
+  const [email, setEmail]     = useState("")
+  const [country, setCountry] = useState("")
+  const [refCode, setRefCode] = useState("")
+  const [hasRef, setHasRef]   = useState(false)
+  const [err, setErr]         = useState("")
+  const [busy, setBusy]       = useState(false)
+  const [sent, setSent]       = useState(false)
 
-  const sendReset = async () => {
-    if (!email) return setErr("Enter your email first.")
-    setBusy(true)
-    setErr("")
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + window.location.pathname,
-      })
-      if (error) throw error
-      setResetSent(true)
-    } catch (e) {
-      setErr(e.message || "Could not send reset email.")
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get('ref')
+    if (ref) {
+      setRefCode(ref.toUpperCase())
+      setHasRef(true)
+      setMode("signup")
     }
-    setBusy(false)
-  }
+  }, [])
 
-  const go = async () => {
+  const submit = useCallback(async (e) => {
+    e?.preventDefault?.()
     setErr("")
-    if (!email || !pass) return setErr("Fill in all fields.")
+    if (!email) return setErr("Enter your email.")
     if (mode === "signup") {
       if (!name) return setErr("Enter your name.")
       if (!country) return setErr("Select your country.")
-      if (pass.length < 6) return setErr("Password must be at least 6 characters.")
-      if (pass !== pass2) return setErr("Passwords do not match.")
     }
     setBusy(true)
     try {
-      if (mode === "login") {
-        await DB.signIn({ email, password: pass })
-        // Profile might take a moment to be available after first login
-        let u = await DB.getUser(email)
-        if (!u) {
-          await new Promise(r => setTimeout(r, 1500))
-          u = await DB.getUser(email)
-        }
-        if (!u) { setErr("Account found but profile is still being set up. Try signing in again in a few seconds."); setBusy(false); return }
-        if (u.banned) { setErr("This account has been suspended."); setBusy(false); return }
-        onAuth(u)
-      } else {
-        // Handle referral bonus
-        if (refCode) {
-          const refUser = await DB.findUserByRef(refCode)
-          if (refUser && refUser.email !== email) {
-            const updated = { ...refUser, scansUsed: Math.max(0, (refUser.scansUsed || 0) - 10), referrals: (refUser.referrals || 0) + 1 }
-            DB.saveUser(refUser.email, updated) // fire-and-forget
-          }
-        }
-        const signUpResult = await DB.signUp({
-          email,
-          password: pass,
+      // Persist referral so App.jsx can process it after the magic link is clicked
+      if (refCode && mode === "signup") {
+        localStorage.setItem('zv_pending_ref', refCode)
+      }
+
+      await DB.sendMagicLink({
+        email,
+        ...(mode === "signup" && {
           name,
           country,
-          svc,
-          currency: currency || "USD",
+          svc: "web",
+          currency: "USD",
           role: getDefaultRole(email),
-        })
+        }),
+      })
 
-        // If email confirmation is OFF, Supabase returns a session immediately
-        if (signUpResult?.session) {
-          // Wait for the trigger to create the profile
-          await new Promise(r => setTimeout(r, 1500))
-          let u = await DB.getUser(email)
-          if (!u) {
-            await new Promise(r => setTimeout(r, 1500))
-            u = await DB.getUser(email)
-          }
-          if (u) {
-            onAuth(u)
-          } else {
-            setErr("Account created but profile is loading. Try signing in.")
-          }
-        } else {
-          // Email confirmation is ON — show the verification screen
-          setConfirmSent(true)
-        }
-      }
+      setSent(true)
     } catch (e) {
-      const msg = e.message || "Something went wrong."
-      const m = msg.toLowerCase()
-      if (m.includes("rate limit") || m.includes("429") || m.includes("too many")) {
-        setErr("Too many attempts. Please wait a minute and try again.")
-      } else if (m.includes("email not confirmed") || m.includes("email_not_confirmed")) {
-        setErr("Your email isn't verified yet. Check your inbox for the confirmation link, then try signing in again.")
-      } else if (m.includes("invalid login") || m.includes("invalid_credentials")) {
-        setErr("Incorrect email or password. Please try again.")
-      } else if (m.includes("already registered") || m.includes("already been registered") || m.includes("user_already_exists")) {
-        setErr("This email is already registered. Try signing in instead.")
-      } else if (m.includes("email_address_invalid") || m.includes("invalid email")) {
-        setErr("Please enter a valid email address.")
-      } else if (m.includes("weak_password") || m.includes("password")) {
-        setErr("Password must be at least 6 characters.")
-      } else if (m.includes("network") || m.includes("fetch")) {
-        setErr("Network error. Check your connection and try again.")
-      } else {
-        setErr(msg)
-      }
+      const msg = (e.message || "").toLowerCase()
+      if (msg.includes("rate limit") || msg.includes("429"))
+        setErr("Too many attempts. Wait a minute.")
+      else if (msg.includes("invalid email"))
+        setErr("Invalid email address.")
+      else if (msg.includes("network") || msg.includes("fetch"))
+        setErr("Network error. Check your connection.")
+      else
+        setErr(e.message || "Something went wrong.")
     }
     setBusy(false)
-  }
+  }, [mode, email, name, country, refCode])
 
-  const gridBg = {
-    position: "fixed", inset: 0, opacity: .025,
-    backgroundImage: "linear-gradient(var(--brd) 1px,transparent 1px),linear-gradient(90deg,var(--brd) 1px,transparent 1px)",
-    backgroundSize: "44px 44px", pointerEvents: "none",
-  }
+  const switchMode = useCallback((m) => {
+    setMode(m); setErr(""); setSent(false)
+  }, [])
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-      background: "radial-gradient(ellipse at 25% 30%,rgba(198,241,53,.05) 0%,transparent 55%),var(--bg)" }}>
-      <div style={gridBg} />
-      <div style={{ width: "100%", maxWidth: 440 }}>
-        <div className="fu" style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <div style={{ width: 44, height: 44, background: "var(--lime)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <I n="target" s={24} c="#0c0e13" />
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "20px 16px", background: "var(--bg)", position: "relative",
+    }}>
+      {/* Soft glow */}
+      <div aria-hidden style={{
+        position: "absolute", top: "-30%", left: "50%", transform: "translateX(-50%)",
+        width: 800, height: 800, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(198,241,53,.06) 0%, transparent 55%)",
+        pointerEvents: "none", filter: "blur(60px)",
+      }} />
+
+      <div style={{ width: "100%", maxWidth: 400, position: "relative", zIndex: 1 }}>
+
+        {/* Brand */}
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 9, marginBottom: 28 }}>
+            <div style={{
+              width: 36, height: 36, background: "var(--lime)", borderRadius: 10,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <I n="target" s={19} c="#0a0c11" />
             </div>
-            <span style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 26, letterSpacing: "-.03em" }}>
+            <span style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 24, letterSpacing: "-.035em" }}>
               Zen<span style={{ color: "var(--lime)" }}>vylo</span>
             </span>
-          </div>
-          <p style={{ color: "var(--txt2)", fontSize: 14 }}>Find clients. Close deals. Grow your business.</p>
+          </a>
+          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", marginBottom: 8, lineHeight: 1.1 }}>
+            {sent
+              ? "Check your inbox"
+              : mode === "login" ? "Welcome back" : "Get started free"}
+          </h1>
+          <p style={{ color: "var(--txt2)", fontSize: 14.5, lineHeight: 1.5 }}>
+            {sent
+              ? `We sent a magic link to ${email}.`
+              : mode === "login"
+                ? "Sign in with a magic link — no password needed."
+                : "3 free scans every month. No credit card."}
+          </p>
         </div>
 
-        <div className="card fu" style={{ padding: 28, animationDelay: ".06s" }}>
-          <div style={{ display: "flex", gap: 3, background: "var(--s2)", borderRadius: 9, padding: 4, marginBottom: 22 }}>
-            {["login", "signup"].map(m => (
-              <button key={m} onClick={() => { setMode(m); setErr(""); setStep(1) }}
-                style={{ flex: 1, padding: "8px", borderRadius: 7, fontFamily: "var(--fh)", fontWeight: 700, fontSize: 13,
-                  background: mode === m ? "var(--s3)" : "transparent",
-                  color: mode === m ? "var(--txt)" : "var(--txt2)",
-                  border: "none", cursor: "pointer", transition: "all .18s" }}>
-                {m === "login" ? "Sign In" : "Create Account"}
-              </button>
-            ))}
-          </div>
+        {/* Card */}
+        <div style={{
+          background: "var(--s1)", border: "1px solid var(--brd)", borderRadius: 16,
+          padding: 24, animation: "fadeUp .25s ease both",
+        }}>
 
-          {confirmSent ? (
-            <div style={{ textAlign: "center", padding: "24px 0" }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(198,241,53,.1)", border: "2.5px solid rgba(198,241,53,.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <I n="check" s={26} c="var(--lime)" />
+          {/* Tabs */}
+          {!sent && (
+            <div role="tablist" style={{
+              display: "flex", gap: 0, marginBottom: 20,
+              borderBottom: "1px solid var(--brd)",
+            }}>
+              {["login", "signup"].map(m => (
+                <button key={m} type="button" role="tab" aria-selected={mode === m}
+                  onClick={() => switchMode(m)}
+                  style={{
+                    flex: 1, padding: "10px 0", marginBottom: -1,
+                    fontFamily: "var(--fh)", fontWeight: 700, fontSize: 14,
+                    background: "transparent",
+                    color: mode === m ? "var(--txt)" : "var(--txt3)",
+                    borderBottom: "2px solid " + (mode === m ? "var(--lime)" : "transparent"),
+                    cursor: "pointer", transition: "color .15s, border-color .15s",
+                  }}>
+                  {m === "login" ? "Sign in" : "Sign up"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Referral banner */}
+          {hasRef && mode === "signup" && !sent && (
+            <div style={{
+              padding: "10px 12px", marginBottom: 16, borderRadius: 10,
+              background: "rgba(198,241,53,.07)", border: "1px solid rgba(198,241,53,.22)",
+              display: "flex", alignItems: "center", gap: 10, fontSize: 13.5,
+            }}>
+              <I n="gift" s={15} c="var(--lime)" />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 700, color: "var(--txt)" }}>+5 bonus scans applied</div>
+                <div style={{ fontSize: 11, color: "var(--txt3)", fontFamily: "var(--fm)", marginTop: 1 }}>{refCode}</div>
               </div>
-              <div style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 18, marginBottom: 8 }}>Check Your Inbox!</div>
-              <p style={{ color: "var(--txt2)", fontSize: 13, lineHeight: 1.7, marginBottom: 6 }}>
-                We sent a verification link to
+            </div>
+          )}
+
+          {/* ── Email sent confirmation ── */}
+          {sent ? (
+            <div style={{ textAlign: "center", padding: "4px 0" }}>
+              <div style={{
+                width: 60, height: 60, borderRadius: "50%",
+                background: "rgba(198,241,53,.1)", border: "1.5px solid rgba(198,241,53,.25)",
+                display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px",
+              }}>
+                <I n="mail" s={28} c="var(--lime)" />
+              </div>
+              <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.6, marginBottom: 6 }}>
+                Magic link sent to
               </p>
-              <p style={{ fontWeight: 700, fontSize: 14, color: "var(--lime)", marginBottom: 16 }}>{email}</p>
-              <p style={{ color: "var(--txt3)", fontSize: 12, lineHeight: 1.6, marginBottom: 20 }}>
-                Click the link in the email to activate your account, then come back here and sign in. Check your spam folder if you don't see it.
+              <p style={{
+                fontWeight: 700, fontSize: 14, color: "var(--lime)", marginBottom: 16,
+                fontFamily: "var(--fm)", wordBreak: "break-all",
+              }}>{email}</p>
+              <p style={{ fontSize: 12.5, color: "var(--txt3)", marginBottom: 20, lineHeight: 1.6 }}>
+                Click the link in the email to sign in instantly.
+                No password required. Check your spam folder if you don't see it.
               </p>
-              <button className="btn btn-lime" style={{ width: "100%", justifyContent: "center", padding: "11px" }}
-                onClick={() => { setConfirmSent(false); setMode("login"); setPass(""); setStep(1); setErr("") }}>
-                <I n="check" s={14} /> Got it — take me to Sign In
+
+              <button className="btn btn-lime btn-xl" style={{ width: "100%", marginBottom: 10 }}
+                onClick={() => window.open(`https://mail.google.com`, '_blank')}>
+                Open Gmail
+              </button>
+              <button className="btn btn-ghost" style={{ width: "100%" }}
+                onClick={() => { setSent(false); setErr("") }}>
+                ← Use a different email
               </button>
             </div>
-          ) : (
 
-          <>
-          {mode === "login" ? (
-            resetSent ? (
-              <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(198,241,53,.1)", border: "2px solid rgba(198,241,53,.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-                  <I n="check" s={22} c="var(--lime)" />
-                </div>
-                <div style={{ fontFamily: "var(--fh)", fontWeight: 800, fontSize: 16, marginBottom: 8 }}>Check Your Email</div>
-                <p style={{ color: "var(--txt2)", fontSize: 13, lineHeight: 1.6 }}>
-                  We sent a password reset link to <strong>{email}</strong>. Click the link in the email to set a new password.
-                </p>
-                <button style={{ marginTop: 14, fontSize: 12, color: "var(--blue)", cursor: "pointer", background: "none", border: "none", fontWeight: 600 }}
-                  onClick={() => { setResetSent(false); setErr("") }}>← Back to Sign In</button>
-              </div>
-            ) : (
-            <>
-              <div style={{ marginBottom: 13 }}>
-                <span className="lbl">Email</span>
-                <input className="inp" type="email" placeholder="you@agency.com" value={email} onChange={e => setEmail(e.target.value)} />
-              </div>
-              <div style={{ marginBottom: 6 }}>
-                <span className="lbl">Password</span>
-                <PasswordInput value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && go()} />
-              </div>
-              <div style={{ textAlign: "right", marginBottom: 16 }}>
-                <button style={{ fontSize: 11, color: "var(--blue)", cursor: "pointer", background: "none", border: "none", fontWeight: 600 }}
-                  onClick={sendReset} disabled={busy}>Forgot password?</button>
-              </div>
-            </>
-            )
           ) : (
-            step === 1 ? (
-              <>
-                <div style={{ marginBottom: 13 }}>
-                  <span className="lbl">Your Name</span>
-                  <input className="inp" placeholder="Alex Johnson" value={name} onChange={e => setName(e.target.value)} />
-                </div>
-                <div style={{ marginBottom: 13 }}>
-                  <span className="lbl">Email</span>
-                  <input className="inp" type="email" placeholder="you@agency.com" value={email} onChange={e => setEmail(e.target.value)} />
-                </div>
-                <div style={{ marginBottom: 13 }}>
-                  <span className="lbl">Password</span>
-                  <PasswordInput value={pass} onChange={e => setPass(e.target.value)} placeholder="Min 6 characters" />
-                </div>
-                <div style={{ marginBottom: 13 }}>
-                  <span className="lbl">Confirm Password</span>
-                  <PasswordInput value={pass2} onChange={e => setPass2(e.target.value)} placeholder="Re-enter password" />
-                  {pass2 && pass !== pass2 && (
-                    <div style={{ fontSize: 11, color: "var(--red)", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                      <I n="alert" s={10} /> Passwords do not match
-                    </div>
-                  )}
-                </div>
-                <div style={{ marginBottom: 13 }}>
-                  <span className="lbl">Your Country</span>
+            /* ── Auth form ── */
+            <form onSubmit={submit} autoComplete="on">
+
+              {mode === "signup" && (
+                <label style={{ display: "block", marginBottom: 13 }}>
+                  <span className="auth-lbl">Full name</span>
+                  <input className="inp" name="name" placeholder="Alex Johnson" autoComplete="name"
+                    value={name} onChange={e => setName(e.target.value)} />
+                </label>
+              )}
+
+              <label style={{ display: "block", marginBottom: mode === "signup" ? 13 : 16 }}>
+                <span className="auth-lbl">Email</span>
+                <input className="inp" type="email" name="email" placeholder="you@agency.com"
+                  autoComplete="email"
+                  value={email} onChange={e => setEmail(e.target.value)} />
+              </label>
+
+              {mode === "signup" && (
+                <label style={{ display: "block", marginBottom: 13 }}>
+                  <span className="auth-lbl">Country</span>
                   <select className="inp" value={country} onChange={e => setCountry(e.target.value)}>
-                    <option value="">Select your country…</option>
+                    <option value="">Select country…</option>
                     {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
-                </div>
-                <div style={{ marginBottom: 20 }}>
-                  <span className="lbl">Your Currency</span>
-                  <select className="inp" value={currency} onChange={e => setCurrency(e.target.value)}>
-                    {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} — {c.name}</option>)}
-                  </select>
-                </div>
-                <button className="btn btn-lime" style={{ width: "100%", justifyContent: "center", padding: "12px" }}
-                  onClick={() => {
-                    if (!name || !email || !pass || !country) return setErr("Fill in all fields.")
-                    if (pass.length < 6) return setErr("Password must be at least 6 characters.")
-                    if (pass !== pass2) return setErr("Passwords do not match.")
-                    setErr(""); setStep(2)
+                </label>
+              )}
+
+              {mode === "signup" && !hasRef && (
+                <details style={{ marginBottom: 16 }}>
+                  <summary style={{
+                    fontSize: 12, color: "var(--txt3)", cursor: "pointer",
+                    userSelect: "none", fontWeight: 500, padding: "4px 0",
                   }}>
-                  Continue →
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ marginBottom: 13 }}>
-                  <span className="lbl">Primary Service You Sell</span>
-                  <select className="inp" value={svc} onChange={e => setSvc(e.target.value)}>
-                    {SERVICES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>
+                    Have a referral code?
+                  </summary>
+                  <div style={{ marginTop: 8 }}>
+                    <input className="inp inp-mono" placeholder="ZL-XXXX-XXXX"
+                      value={refCode} onChange={e => setRefCode(e.target.value.toUpperCase())} />
+                  </div>
+                </details>
+              )}
+
+              {err && (
+                <div style={{
+                  background: "rgba(245,66,66,.08)", border: "1px solid rgba(245,66,66,.22)",
+                  borderRadius: 9, padding: "9px 12px", marginBottom: 14,
+                  color: "#ff8a8a", fontSize: 13, display: "flex", gap: 8, alignItems: "flex-start",
+                }}>
+                  <I n="alert" s={13} c="var(--red)" /><span>{err}</span>
                 </div>
-                <div style={{ marginBottom: 20 }}>
-                  <span className="lbl">Referral Code (optional)</span>
-                  <input className="inp" placeholder="ZL-XXXX-XXXX" value={refCode} onChange={e => setRefCode(e.target.value.toUpperCase())} />
-                </div>
-              </>
-            )
-          )}
+              )}
 
-          {err && <div style={{ background: "rgba(245,66,66,.1)", border: "1.5px solid rgba(245,66,66,.25)",
-            borderRadius: 8, padding: "9px 13px", marginBottom: 14, color: "var(--red)", fontSize: 13,
-            display: "flex", gap: 7, alignItems: "center" }}>
-            <I n="alert" s={13} />{err}
-          </div>}
+              <button type="submit" className="btn btn-lime btn-xl"
+                style={{ width: "100%" }} disabled={busy}>
+                {busy && (
+                  <span style={{
+                    width: 15, height: 15, border: "2.5px solid rgba(0,0,0,.2)",
+                    borderTopColor: "#000", borderRadius: "50%",
+                    animation: "spin .7s linear infinite",
+                  }} />
+                )}
+                {busy ? "Sending…" : mode === "login" ? "Send magic link" : "Create account"}
+              </button>
 
-          {((mode === "login" && !resetSent) || (mode === "signup" && step === 2)) && (
-            <button className="btn btn-lime" style={{ width: "100%", justifyContent: "center", padding: "12px" }} onClick={go} disabled={busy}>
-              {busy && <span style={{ width: 16, height: 16, border: "2.5px solid rgba(0,0,0,.2)", borderTopColor: "#000", borderRadius: "50%", animation: "spin .7s linear infinite", display: "inline-block" }} />}
-              {busy ? "Please wait…" : mode === "login" ? "Sign In" : "Create Free Account"}
-            </button>
-          )}
-
-          {mode === "signup" && step === 2 && (
-            <button style={{ width: "100%", marginTop: 10, padding: "8px", color: "var(--txt3)", fontSize: 12, cursor: "pointer", background: "none", border: "none" }}
-              onClick={() => setStep(1)}>← Back</button>
-          )}
-          </>
+              {mode === "login" && (
+                <p style={{ textAlign: "center", marginTop: 12, fontSize: 12, color: "var(--txt3)" }}>
+                  We'll email you a secure, one-click link — no password ever.
+                </p>
+              )}
+            </form>
           )}
         </div>
-        <p style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "var(--txt3)" }}>
-          Free forever: 3 scans/month · No credit card needed
+
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--txt3)" }}>
+          {mode === "signup"
+            ? "By signing up you agree to our Terms & Privacy."
+            : "Free forever · 3 scans/month"}
         </p>
       </div>
+
+      <style>{`
+        .auth-lbl{font-size:11.5px;font-weight:600;color:var(--txt2);letter-spacing:.005em;margin-bottom:6px;display:block}
+      `}</style>
     </div>
   )
 }

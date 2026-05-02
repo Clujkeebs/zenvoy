@@ -1,8 +1,9 @@
 import PageHeader from '../ui/PageHeader'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Icon from '../../icons/Icon'
 import { PLANS } from '../../constants/plans'
 import { SERVICES } from '../../constants/services'
+import { fmtDate } from '../../utils/helpers'
 import * as DB from '../../utils/db'
 const I = Icon
 
@@ -12,8 +13,18 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
   const [saved, setSaved] = useState(false);
   const [imgUrl, setImgUrl] = useState(user.profileImageUrl || null);
   const [uploading, setUploading] = useState(false);
+  const [referrals, setReferrals] = useState([]);
   const fileRef = useRef(null);
-  const refLink = `${window.location.origin}${window.location.pathname}?ref=${user.refCode}`;
+  const refLink = `${window.location.origin}?ref=${user.refCode}`;
+  const refCode = user.refCode || "";
+
+  useEffect(() => {
+    async function load() {
+      const recs = await DB.getReferrals(user.email);
+      setReferrals(recs || []);
+    }
+    load();
+  }, [user.email]);
 
   const save = () => {
     const u={...user,name,svc}; DB.saveUser(user.email,u); onUpdate(u); setSaved(true); setTimeout(()=>setSaved(false),2000);
@@ -95,17 +106,66 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
       </div>
 
       <div className="card" style={{ padding:"19px 22px",marginBottom:12 }}>
-        <div style={{ display:"flex",alignItems:"center",gap:9,marginBottom:9 }}>
+        <div style={{ display:"flex",alignItems:"center",gap:9,marginBottom:12 }}>
           <I n="gift" s={16} c="var(--lime)"/>
-          <div style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:14 }}>Refer a Friend — Earn 10 Free Scans</div>
+          <div style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:14 }}>Referral Program</div>
         </div>
-        <p style={{ color:"var(--txt2)",fontSize:13,marginBottom:12 }}>
-          When someone signs up using your link you get +10 bonus scans automatically. You've referred <strong style={{ color:"var(--lime)" }}>{user.referrals||0}</strong> {(user.referrals||0)===1?"person":"people"} so far.
-        </p>
-        <div style={{ display:"flex",gap:8 }}>
-          <div className="inp" style={{ flex:1,fontSize:12,color:"var(--txt2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{refLink}</div>
-          <button className="btn btn-lime" style={{ whiteSpace:"nowrap" }} onClick={()=>navigator.clipboard.writeText(refLink)}><I n="copy" s={13}/>Copy Link</button>
+
+        {/* Referral Code */}
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11,fontWeight:700,color:"var(--txt3)",textTransform:"uppercase",letterSpacing:".04em",marginBottom:6 }}>Your Referral Code</div>
+          <div style={{ display:"flex",gap:8 }}>
+            <div className="inp" style={{ flex:1,fontSize:14,fontWeight:700,letterSpacing:"0.05em",color:"var(--lime)",fontFamily:"monospace" }}>{refCode}</div>
+            <button className="btn btn-lime" style={{ whiteSpace:"nowrap" }} onClick={()=>navigator.clipboard.writeText(refCode)}><I n="copy" s={13}/>Copy</button>
+          </div>
         </div>
+
+        {/* Referral Link */}
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11,fontWeight:700,color:"var(--txt3)",textTransform:"uppercase",letterSpacing:".04em",marginBottom:6 }}>Share Your Link</div>
+          <div style={{ display:"flex",gap:8 }}>
+            <div className="inp" style={{ flex:1,fontSize:12,color:"var(--txt2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{refLink}</div>
+            <button className="btn btn-lime" style={{ whiteSpace:"nowrap" }} onClick={()=>navigator.clipboard.writeText(refLink)}><I n="copy" s={13}/>Copy Link</button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14 }}>
+          <div style={{ padding:"10px 13px",background:"var(--s2)",borderRadius:8,border:"1.5px solid var(--brd)" }}>
+            <div style={{ fontSize:10,fontWeight:700,color:"var(--txt3)",marginBottom:4,textTransform:"uppercase" }}>People Referred</div>
+            <div style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:20,color:"var(--lime)" }}>{user.referrals||0}</div>
+          </div>
+          <div style={{ padding:"10px 13px",background:"var(--s2)",borderRadius:8,border:"1.5px solid var(--brd)" }}>
+            <div style={{ fontSize:10,fontWeight:700,color:"var(--txt3)",marginBottom:4,textTransform:"uppercase" }}>Bonus Scans Earned</div>
+            <div style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:20,color:"var(--green)" }}>{(user.referrals||0)*10}</div>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div style={{ fontSize:12,color:"var(--txt2)",padding:"10px 13px",background:"rgba(198,241,53,.05)",borderRadius:8,border:"1.5px solid rgba(198,241,53,.15)" }}>
+          <strong>💡 How it works:</strong> Share your code or link. When someone signs up using your referral, they get <strong>+5 bonus scans</strong> and you earn <strong>+10 scans</strong>. Unlimited referrals, unlimited rewards.
+        </div>
+
+        {/* Referrals List */}
+        {referrals && referrals.length > 0 && (
+          <div style={{ marginTop:14,paddingTop:14,borderTop:"1.5px solid var(--brd)" }}>
+            <div style={{ fontSize:12,fontWeight:700,color:"var(--txt2)",marginBottom:10 }}>People You've Referred ({referrals.length})</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {referrals.map(ref => ref.referredEmail && (
+                <div key={ref.referredUserId} style={{ padding:"10px 13px",background:"var(--s2)",borderRadius:8,border:"1.5px solid var(--brd)",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                  <div>
+                    <div style={{ fontWeight:600,fontSize:13,color:"var(--txt)" }}>{ref.referredName||"User"}</div>
+                    <div style={{ fontSize:11,color:"var(--txt3)",marginTop:2 }}>{ref.referredEmail}</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:11,fontWeight:700,color:"var(--lime)" }}>+10 scans</div>
+                    <div style={{ fontSize:10,color:"var(--txt3)",marginTop:2 }}>{fmtDate(ref.referredAt)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ padding:"19px 22px",border:"1.5px solid rgba(245,66,66,.2)" }}>

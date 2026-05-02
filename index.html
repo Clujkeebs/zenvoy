@@ -5,40 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
   <title>Zenvylo — AI Lead Scanner for Freelancers &amp; Agencies</title>
-  <meta name="description" content="Find local businesses that desperately need your services. Zenvylo AI scores every lead, writes your outreach, and ensures zero duplicate leads. Free to start." />
-  <meta name="keywords" content="AI lead generation, freelancer leads, local business clients, SEO leads, web design clients, find clients, lead scanner, outreach tool, freelance CRM" />
+  <meta name="description" content="Find local businesses that desperately need your services. Zenvylo AI scores every lead, writes your cold emails, proposals & scripts — zero duplicate leads. Free to start, no credit card." />
+  <meta name="keywords" content="AI lead generation, freelancer leads, find freelance clients, local business clients, SEO leads, web design clients, find clients online, lead scanner, cold email tool, freelance CRM, AI outreach, lead generation software, freelance business tool" />
   <meta name="author" content="Zenvylo" />
-  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <meta name="theme-color" content="#0c0e13" />
   <meta name="application-name" content="Zenvylo" />
+  <meta name="rating" content="general" />
+  <meta name="revisit-after" content="7 days" />
+  <meta name="language" content="English" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Zenvylo" />
   <meta property="og:title" content="Zenvylo — AI Lead Scanner for Freelancers &amp; Agencies" />
-  <meta property="og:description" content="Find local businesses that desperately need your services. Zenvylo AI scores every lead, writes your outreach, and ensures zero duplicate leads. Free to start." />
+  <meta property="og:description" content="Find local businesses that desperately need your services. Zenvylo AI scores every lead, writes your cold emails &amp; proposals. Zero duplicate leads. Free to start." />
   <meta property="og:url" content="https://zenvylo.com" />
   <meta property="og:image" content="https://zenvylo.com/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Zenvylo AI Lead Scanner Dashboard" />
   <meta property="og:locale" content="en_US" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@zenvylo" />
+  <meta name="twitter:creator" content="@zenvylo" />
   <meta name="twitter:title" content="Zenvylo — AI Lead Scanner for Freelancers &amp; Agencies" />
-  <meta name="twitter:description" content="Find local businesses that desperately need your services. Zenvylo AI scores every lead, writes your outreach, and ensures zero duplicate leads. Free to start." />
+  <meta name="twitter:description" content="Find local businesses that desperately need your services. AI scores every lead, writes your outreach. Zero duplicate leads. Free to start." />
   <meta name="twitter:image" content="https://zenvylo.com/og-image.png" />
+  <meta name="twitter:image:alt" content="Zenvylo AI Lead Scanner Dashboard" />
 
-  <link rel="canonical" href="https://zenvylo.com" />
+  <link rel="canonical" href="https://zenvylo.com/" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="manifest" href="/manifest.json" />
 
   <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://api.fontshare.com" />
-  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800,900&f[]=satoshi@400,500,700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Inter+Tight:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" />
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900&f[]=satoshi@400,500,700&display=swap" />
+
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZENVYLO001"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-ZENVYLO001', {
+      page_title: document.title,
+      page_location: window.location.href,
+      send_page_view: true,
+      cookie_flags: 'SameSite=None;Secure',
+    });
+    // Expose gtag globally for analytics utility
+    window._gtag = gtag;
+  </script>
 
   <!-- JSON-LD: SoftwareApplication -->
   <script type="application/ld+json">
@@ -47,20 +72,49 @@
     "@type": "SoftwareApplication",
     "name": "Zenvylo",
     "applicationCategory": "BusinessApplication",
+    "applicationSubCategory": "Lead Generation",
     "operatingSystem": "Web",
-    "description": "Find local businesses that desperately need your services. Zenvylo AI scores every lead, writes your outreach, and ensures zero duplicate leads.",
+    "description": "AI-powered lead generation platform for freelancers and agencies. Find local businesses that need your services, get AI-scored leads, and generate cold emails, proposals, and scripts instantly.",
     "url": "https://zenvylo.com",
     "offers": [
-      { "@type":"Offer","name":"Free","price":"0","priceCurrency":"USD","description":"3 scans/month, 5 leads per scan" },
-      { "@type":"Offer","name":"Starter","price":"9.00","priceCurrency":"USD","description":"20 scans/month, 5 leads per scan, CSV export" },
-      { "@type":"Offer","name":"Growth","price":"19.00","priceCurrency":"USD","description":"50 scans/month, 8 leads per scan, CRM, all countries" },
-      { "@type":"Offer","name":"Pro","price":"39.00","priceCurrency":"USD","description":"100 scans/month, 10 leads per scan, AI tools, 7-day trial" },
-      { "@type":"Offer","name":"Scale","price":"79.00","priceCurrency":"USD","description":"200 scans/month, 15 leads per scan, business audit, priority" }
+      { "@type":"Offer","name":"Free","price":"0","priceCurrency":"USD","description":"3 scans/month, 5 leads per scan, single country" },
+      { "@type":"Offer","name":"Starter","price":"9.00","priceCurrency":"USD","description":"20 scans/month, 5 leads per scan, CSV export, scan history","priceValidUntil":"2027-01-01" },
+      { "@type":"Offer","name":"Growth","price":"19.00","priceCurrency":"USD","description":"50 scans/month, 8 leads per scan, CRM, all 35+ countries","priceValidUntil":"2027-01-01" },
+      { "@type":"Offer","name":"Pro","price":"39.00","priceCurrency":"USD","description":"100 scans/month, 10 leads per scan, AI tools, 7-day free trial","priceValidUntil":"2027-01-01" },
+      { "@type":"Offer","name":"Scale","price":"79.00","priceCurrency":"USD","description":"200 scans/month, 15 leads per scan, business audit AI, priority","priceValidUntil":"2027-01-01" }
     ],
-    "aggregateRating": { "@type":"AggregateRating","ratingValue":"4.8","reviewCount":"127","bestRating":"5" },
-    "featureList": "AI lead scoring, Cold email generation, CRM, Community, Analytics, Multi-country search",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "reviewCount": "214",
+      "bestRating": "5",
+      "worstRating": "1"
+    },
+    "featureList": [
+      "AI lead scoring and opportunity analysis",
+      "Cold email generation",
+      "Phone call scripts",
+      "Service proposals",
+      "30-60-90 day action roadmaps",
+      "Pricing strategy advisor",
+      "Service package builder",
+      "5-email follow-up sequences",
+      "Full CRM with pipeline tracking",
+      "CSV export",
+      "35+ countries supported",
+      "Zero duplicate leads guarantee",
+      "Profitability calculator",
+      "Scan history",
+      "Analytics dashboard"
+    ],
     "screenshot": "https://zenvylo.com/og-image.png",
-    "creator": { "@type":"Organization","name":"Zenvylo","url":"https://zenvylo.com" }
+    "creator": {
+      "@type": "Organization",
+      "name": "Zenvylo",
+      "url": "https://zenvylo.com",
+      "email": "hello@zenvylo.com"
+    },
+    "mainEntityOfPage": "https://zenvylo.com"
   }
   </script>
 
@@ -70,11 +124,62 @@
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
-      { "@type":"Question","name":"How does Zenvylo find leads?","acceptedAnswer":{"@type":"Answer","text":"Zenvylo uses AI to scan local markets and identify small businesses with weak online presence — slow websites, no SSL, few reviews, or outdated web design — that are strong candidates for your services."} },
-      { "@type":"Question","name":"Are leads exclusive to me?","acceptedAnswer":{"@type":"Answer","text":"Yes. Zenvylo maintains a global name registry. Once a business is discovered by any user it is permanently blocked from appearing in other users' scan results — your leads are yours alone."} },
-      { "@type":"Question","name":"What is the pricing for Zenvylo?","acceptedAnswer":{"@type":"Answer","text":"Zenvylo is free to start with 3 scans per month. Starter is $9/month (20 scans), Growth is $19/month (50 scans), Pro is $39/month (100 scans + AI tools + 7-day free trial), and Scale is $79/month (200 scans). You can also buy individual scan packs starting at $5 for 5 scans."} },
-      { "@type":"Question","name":"What AI features are included?","acceptedAnswer":{"@type":"Answer","text":"Pro and Scale plans include AI-generated cold emails, phone scripts, 30-60-90 day roadmaps, service proposals, pricing strategy, elevator pitches, service package builders, and follow-up email sequences."} },
-      { "@type":"Question","name":"Can I cancel Zenvylo anytime?","acceptedAnswer":{"@type":"Answer","text":"Yes. All Zenvylo plans are month-to-month with no contracts. Cancel anytime from your Settings with no fees or penalties."} }
+      {
+        "@type": "Question",
+        "name": "How does Zenvylo find leads for freelancers?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Zenvylo uses AI to scan local markets and identify small businesses with weak online presence — slow websites, no SSL, few reviews, outdated web design, no social media — that are strong candidates for your specific service. Each lead gets an opportunity score (0-100) based on need, market demand, and competition."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Are Zenvylo leads exclusive to me?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Zenvylo maintains a global name registry. Once a business is discovered by any user, it is permanently blocked from appearing in other users' scan results — your leads are guaranteed to be yours alone. No competing with other Zenvylo users for the same prospect."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the pricing for Zenvylo?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Zenvylo is free to start with 3 scans per month. Paid plans: Starter $9/month (20 scans), Growth $19/month (50 scans + CRM + all countries), Pro $39/month (100 scans + AI tools + 7-day free trial), Scale $79/month (200 scans + all AI features). Individual scan packs also available from $5 for 5 scans."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What AI writing tools does Zenvylo include?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Pro and Scale plans include 8 AI tools: cold email drafts, phone call scripts, 30-60-90 day action roadmaps, full service proposals, pricing strategy advisor, 30-second elevator pitches, service package builders, and 5-email follow-up sequences. Scale plan also adds full business audit AI."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I cancel Zenvylo anytime?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. All Zenvylo plans are completely month-to-month with no contracts. Cancel anytime from your Settings — no fees, no penalties, no questions asked."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What countries does Zenvylo support for lead generation?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Zenvylo supports 35+ countries including United States, United Kingdom, Canada, Australia, Ireland, New Zealand, South Africa, Nigeria, Kenya, Germany, France, Philippines, India, UAE, Singapore, and many more. Starter plan is limited to your home country; Growth, Pro, and Scale plans unlock all countries."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Zenvylo require a credit card to start?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No credit card required to get started. The Free plan gives you 3 scans immediately. The Pro plan comes with a 7-day free trial — you can explore all AI features before deciding to pay."
+        }
+      }
     ]
   }
   </script>
@@ -86,9 +191,40 @@
     "@type": "Organization",
     "name": "Zenvylo",
     "url": "https://zenvylo.com",
-    "logo": "https://zenvylo.com/logo.png",
-    "description": "AI-powered lead generation platform for freelancers and agencies",
-    "sameAs": []
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://zenvylo.com/icon-192.png",
+      "width": 192,
+      "height": 192
+    },
+    "description": "AI-powered lead generation platform for freelancers and agencies. Find local business clients, generate outreach, and track your pipeline.",
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "hello@zenvylo.com",
+      "contactType": "customer support"
+    },
+    "sameAs": [
+      "https://twitter.com/zenvylo"
+    ]
+  }
+  </script>
+
+  <!-- JSON-LD: WebSite (enables sitelinks search box) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Zenvylo",
+    "url": "https://zenvylo.com",
+    "description": "AI lead generation for freelancers and agencies",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://zenvylo.com/?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    }
   }
   </script>
 </head>

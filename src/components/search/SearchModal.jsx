@@ -4,6 +4,7 @@ import { SERVICES, COUNTRIES } from '../../constants/services'
 import { canMulti, getLeadsPerScan, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
 import { generateLeads } from '../../utils/ai'
 import * as DB from '../../utils/db'
+import Analytics from '../../utils/analytics'
 const I = Icon
 
 export default function SearchModal({ user, onClose, onDone }) {
@@ -27,6 +28,7 @@ export default function SearchModal({ user, onClose, onDone }) {
     if (!country) { setErr("Select a country first."); return; }
     if (scansLeft <= 0) { setErr("No scans left — upgrade your plan or buy a scan pack."); return; }
     setErr(""); setScanning(true); setLog([]);
+    Analytics.scanStarted(svc, country)
     const svcObj = SERVICES.find(s=>s.id===svc);
     const loc = city ? city+", "+country : country;
     const steps = [
