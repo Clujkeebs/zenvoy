@@ -32,12 +32,12 @@ export default function SearchModal({ user, onClose, onDone }) {
     const svcObj = SERVICES.find(s=>s.id===svc);
     const loc = city ? city+", "+country : country;
     const steps = [
-      "🌍 Targeting "+loc+"…",
-      "🔍 Scanning for "+svcObj.label+" opportunities…",
-      "📊 Analyzing demand vs competition in "+country+"…",
-      "⚡ Checking website speeds and SSL certificates…",
-      "⭐ Pulling Google review counts and ratings…",
-      "🤖 Scoring leads by opportunity size, demand & difficulty…",
+      "🌍 Locating "+loc+" on the map…",
+      "🔍 Querying OpenStreetMap for local businesses…",
+      "📋 Reading real names, addresses & contact info…",
+      "🔗 Checking which businesses have websites & SSL…",
+      "🤖 AI analysing each business for "+svcObj.label+" gaps…",
+      "📊 Scoring opportunities by demand & competition…",
       "🎯 Ranking by profitability estimate…",
     ];
     for (let i=0;i<steps.length;i++) {
@@ -86,7 +86,7 @@ export default function SearchModal({ user, onClose, onDone }) {
             <div style={{fontFamily:"var(--fh)",fontWeight:800,fontSize:20}}>
               {scanning?"Scanning "+( city||country||"your location")+"…":"Find New Leads"}
             </div>
-            {scanning&&<div style={{fontSize:12,color:"var(--txt3)",marginTop:2}}>AI is finding {getLeadsPerScan(user)} {SERVICES.find(s=>s.id===svc)?.label} leads</div>}
+            {scanning&&<div style={{fontSize:12,color:"var(--txt3)",marginTop:2}}>Finding {getLeadsPerScan(user)} real {SERVICES.find(s=>s.id===svc)?.label} leads from OpenStreetMap</div>}
           </div>
           {!scanning&&<button className="btn btn-ghost" style={{padding:"6px 8px"}} onClick={onClose}>
             <I n="x" s={16}/>

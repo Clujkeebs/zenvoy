@@ -1,5 +1,5 @@
-import { BTYPE, SERVICES } from '../constants/services'
-import * as DB from './db'
+import { SERVICES } from '../constants/services'
+import { fetchRealBusinesses } from './places'
 import { supabase } from '../lib/supabase'
 
 /* ── Core AI Call (via Supabase Edge Function) ──────────── */
@@ -42,82 +42,156 @@ export async function aiCall(prompt, maxTokens = 1000, attempt = 0) {
 }
 
 /* ── Lead Generation ────────────────────────────────────── */
-export async function generateLeads({ service, country, city, existingNames, lowBudget, count = 5 }) {
-  const svc = SERVICES.find(s => s.id === service)
+
+/**
+ * Enrich a list of real businesses with AI analysis.
+ * The AI analyses them — it does NOT invent names, addresses, or phone numbers.
+ */
+async function enrichWithAI(businesses, svc, country, city, lowBudget) {
   const loc = city ? city + ", " + country : country
-  const globalNames = await DB.getGlobalNames()
-  const allAvoid = [...new Set([...existingNames, ...globalNames])].slice(-20).join(", ") || "none"
   const budgetNote = lowBudget ? " setupCost must be under $500." : ""
 
-  const prompt = `You are a JSON API. Return ONLY a valid JSON array, nothing else. No markdown fences, no explanation text, no comments. Start your response with [ and end with ].
+  // Send only the fields the AI needs for analysis
+  const bList = businesses.map((b, i) => ({
+    i,
+    name:       b.name,
+    btype:      b.btype,
+    hasWebsite: !!b.website,
+    hasPhone:   !!b.phone,
+    hasSsl:     b.ssl,
+  }))
 
-Generate exactly ${count} local small business leads in ${loc} for a ${svc.label} freelancer.
+  const prompt = `You are a freelance sales analyst. Analyse these REAL local businesses for a ${svc.label} freelancer in ${loc}.
 
-Each element:
-{"name":"unique local business name","btype":"${BTYPE.slice(0, 12).join('"|"')}","address":"street address in ${loc}","phone":"local number or null","website":"https://url or null","rating":3.8,"reviews":12,"speed":45,"ssl":false,"employees":"3-8","founded":2015,"problems":["issue 1","issue 2"],"why":"one sentence why they need ${svc.label} right now","opportunityScore":72,"demandScore":68,"competitionScore":35,"difficultyRating":"medium","setupCost":350,"suggestedMonthlyRate":900,"toolsCostMonthly":130,"marketSaturation":"competitive"}
+Businesses: ${JSON.stringify(bList)}
 
-Rules: opportunityScore 0-100 (higher=better lead), demandScore 0-100 (market demand), competitionScore 0-100 (lower=less competition=better), difficultyRating easy/medium/hard, marketSaturation underserved/competitive/saturated, suggestedMonthlyRate in USD realistic for ${country}.${budgetNote} NEVER use these names: ${allAvoid}`
+Return ONLY a valid JSON array — no markdown, no explanation. Start with [ and end with ].
+Each element corresponds to a business by its index i:
+[{"i":0,"problems":["specific issue 1","specific issue 2"],"why":"one sentence why they need ${svc.label} right now","opportunityScore":72,"demandScore":68,"competitionScore":35,"difficultyRating":"easy|medium|hard","marketSaturation":"underserved|competitive|saturated","suggestedMonthlyRate":900,"toolsCostMonthly":130,"setupCost":350},...]
 
-  const tokenBudget = Math.min(600 + count * 280, 4000)
-  const text = await aiCall(prompt, tokenBudget)
+Rules:
+- opportunityScore 0-100 (higher = better lead for this service)
+- If hasWebsite is false, include "No online presence" in problems
+- If hasPhone is false, include "No contact info listed" in problems
+- suggestedMonthlyRate realistic for ${country}${budgetNote}
+- Return ONLY the JSON array`
 
-  let clean = text.trim()
-  clean = clean.replace(/```json\s*/gi, "").replace(/```\s*/g, "")
-  const arrMatch = clean.match(/\[[\s\S]*\]/)
-  if (!arrMatch) throw new Error("AI returned unexpected format. Please try again.")
-  clean = arrMatch[0]
+  const tokenBudget = Math.min(500 + businesses.length * 200, 3500)
+
+  /* Heuristic fallback if AI fails */
+  const heuristic = (b, i) => ({
+    i,
+    problems: [
+      !b.website ? "No online presence"      : "Outdated or weak website",
+      !b.phone   ? "No contact info listed"  : "Limited digital reach",
+    ],
+    why: `${b.name} could grow significantly with better ${svc.label.toLowerCase()}.`,
+    opportunityScore:  50 + Math.floor((!b.website ? 15 : 0) + (!b.phone ? 10 : 0) + Math.random() * 15),
+    demandScore:       55,
+    competitionScore:  40,
+    difficultyRating:  "medium",
+    marketSaturation:  "competitive",
+    suggestedMonthlyRate: 700,
+    toolsCostMonthly:     100,
+    setupCost:            300,
+  })
 
   let arr
   try {
-    arr = JSON.parse(clean)
-  } catch (e) {
+    const text  = await aiCall(prompt, tokenBudget)
+    let   clean = text.trim().replace(/```json\s*/gi, "").replace(/```\s*/g, "")
+    const match = clean.match(/\[[\s\S]*\]/)
+    if (!match) throw new Error("no array")
+    clean = match[0]
     try {
-      const fixedClean = clean
+      arr = JSON.parse(clean)
+    } catch {
+      const fixed = clean
         .replace(/,\s*([}\]])/g, "$1")
         .replace(/([{,]\s*)(\w+):/g, '$1"$2":')
         .replace(/:\s*undefined/g, ":null")
-      arr = JSON.parse(fixedClean)
-    } catch (e2) {
-      const text2 = await aiCall(prompt + "\n\nIMPORTANT: Return ONLY the JSON array, nothing else.", tokenBudget)
-      const clean2 = text2.trim().replace(/```json\s*/gi, "").replace(/```\s*/g, "")
-      const match2 = clean2.match(/\[[\s\S]*\]/)
-      if (!match2) throw new Error("AI returned unexpected format after retry.")
-      arr = JSON.parse(match2[0])
+      arr = JSON.parse(fixed)
     }
+  } catch {
+    // AI failed — use heuristic scores on real businesses (still better than fake data)
+    return businesses.map(heuristic)
   }
 
-  if (!Array.isArray(arr) || arr.length === 0) throw new Error("No leads returned. Try a different location or service.")
+  if (!Array.isArray(arr)) return businesses.map(heuristic)
 
-  const leads = arr.map((b, i) => {
-    const score = Math.min(98, Math.max(20, b.opportunityScore || (
-      30 + (b.ssl === false ? 18 : 0) + (!b.website ? 22 : 0)
-      + (b.reviews < 5 ? 15 : b.reviews < 15 ? 8 : 0)
-      + (b.speed < 30 ? 14 : b.speed < 50 ? 7 : 0)
-      + ((b.problems || []).length * 8) + Math.floor(Math.random() * 10)
-    )))
-    const suggested = Math.max(200, b.suggestedMonthlyRate || Math.floor(500 + Math.random() * 900))
-    const tools = Math.max(20, b.toolsCostMonthly || Math.floor(60 + Math.random() * 160))
+  // Map back by index, fill any gaps with heuristic
+  return businesses.map((b, i) => {
+    const a = arr.find(x => x.i === i) ?? arr[i]
+    return a ?? heuristic(b, i)
+  })
+}
+
+/**
+ * Generate leads by:
+ *   1. Fetching REAL businesses from OpenStreetMap (free, no API key)
+ *   2. Having the AI *analyse* those real businesses (not invent them)
+ */
+export async function generateLeads({ service, country, city, existingNames, lowBudget, count = 5 }) {
+  const svc = SERVICES.find(s => s.id === service)
+  const loc = city ? city + ", " + country : country
+
+  /* ── Step 1: Real businesses from OpenStreetMap ─────── */
+  const pool = await fetchRealBusinesses({ city, country })
+
+  /* ── Step 2: Filter out businesses this user already has */
+  const filtered = pool.filter(b => !existingNames.includes(b.name))
+  if (filtered.length === 0) {
+    throw new Error(`All businesses found in ${loc} are already in your leads. Try a different city.`)
+  }
+
+  /* Take up to count*2 as working set (AI trims to count after scoring) */
+  const workSet = filtered.slice(0, count * 2)
+
+  /* ── Step 3: AI analyses real businesses ────────────── */
+  const enriched = await enrichWithAI(workSet, svc, country, city, lowBudget)
+
+  /* ── Step 4: Merge real data with AI analysis ───────── */
+  const leads = enriched.slice(0, count).map((analysis, i) => {
+    const real      = workSet[i]
+    const score     = Math.min(98, Math.max(20, analysis.opportunityScore ?? 50))
+    const suggested = Math.max(200, analysis.suggestedMonthlyRate ?? 700)
+    const tools     = Math.max(20,  analysis.toolsCostMonthly     ?? 80)
+
     return {
       id: "l_" + Date.now() + "_" + i,
-      name: b.name || "Business " + i, btype: b.btype || "Local Business",
-      address: b.address || loc, phone: b.phone || null, website: b.website || null,
-      rating: b.rating || 3.5, reviews: b.reviews || 8, speed: b.speed || 50, ssl: !!b.ssl,
-      employees: b.employees || "2-5", founded: b.founded || 2018,
-      problems: b.problems || [], why: b.why || "",
+      /* ── From OpenStreetMap (real, verified) ─── */
+      name:    real.name,
+      btype:   real.btype,
+      address: real.address,
+      phone:   real.phone    ?? null,
+      website: real.website  ?? null,
+      ssl:     real.ssl,
+      /* ── AI analysis of the real business ────── */
+      problems:          analysis.problems         ?? [],
+      why:               analysis.why              ?? "",
       score,
-      suggestedMonthlyRate: suggested, myMonthlyRate: suggested,
-      toolsCostMonthly: tools,
-      setupCost: Math.max(50, b.setupCost || Math.floor(150 + Math.random() * 350)),
-      demandScore: b.demandScore || Math.floor(50 + Math.random() * 40),
-      competitionScore: b.competitionScore || Math.floor(20 + Math.random() * 50),
-      difficultyRating: b.difficultyRating || "medium",
-      marketSaturation: b.marketSaturation || "competitive",
-      country, city: city || "", serviceId: service, serviceLabel: svc.label,
+      demandScore:       analysis.demandScore      ?? Math.floor(50 + Math.random() * 40),
+      competitionScore:  analysis.competitionScore ?? Math.floor(20 + Math.random() * 50),
+      difficultyRating:  analysis.difficultyRating ?? "medium",
+      marketSaturation:  analysis.marketSaturation ?? "competitive",
+      suggestedMonthlyRate: suggested,
+      myMonthlyRate:        suggested,
+      toolsCostMonthly:     tools,
+      setupCost: Math.max(50, analysis.setupCost ?? 200),
+      /* ── OSM doesn't carry these; left null ──── */
+      rating:    null,
+      reviews:   null,
+      speed:     null,
+      employees: null,
+      founded:   null,
+      /* ── Context ─────────────────────────────── */
+      country, city: city || "",
+      serviceId:    service,
+      serviceLabel: svc.label,
       status: "new", saved: false, notes: "", followUpDate: null,
     }
   })
 
-  DB.addGlobalNames(leads.map(l => l.name))
   return leads
 }
 
@@ -149,19 +223,25 @@ export async function genProposal(lead, userName) {
 }
 
 export async function genAudit(lead, userName) {
+  const speedStr   = lead.speed    != null ? lead.speed + "/100"  : "not measured"
+  const reviewsStr = lead.reviews  != null ? String(lead.reviews) : "unknown"
+  const ratingStr  = lead.rating   != null ? String(lead.rating)  : "unknown"
+  const sslStr     = lead.ssl ? "Yes" : (lead.website ? "No" : "No website")
   return aiCall(
     "You are a " + lead.serviceLabel + " expert. Write a detailed business audit for " + lead.name + " (" + lead.btype + " in " + (lead.city || lead.country) + ").\n"
-    + "Known issues: " + (lead.problems || []).join(", ") + "\nPageSpeed: " + lead.speed + "/100, Reviews: " + lead.reviews + ", Rating: " + lead.rating + ", SSL: " + (lead.ssl ? "Yes" : "No") + "\n\n"
+    + "Known issues: " + (lead.problems || []).join(", ") + "\nPageSpeed: " + speedStr + ", Reviews: " + reviewsStr + ", Rating: " + ratingStr + ", SSL: " + sslStr + "\n\n"
     + "Format the audit as:\nAUDIT SCORE: X/100\n\nCRITICAL ISSUES (2-3 items, each with impact level HIGH/MED/LOW)\n\nQUICK WINS (2-3 things fixable in 30 days)\n\nREVENUE IMPACT: Estimated monthly revenue they're losing\n\nCOMPETITOR BENCHMARK: How they compare to top 3 local competitors\n\nPRIORITY ACTION: The single most important fix\n\nUnder 250 words. Be specific, data-driven, and confident.",
     700)
 }
 
 export async function genPricingAdvice(lead) {
-  const base = lead.suggestedMonthlyRate || 800
+  const base      = lead.suggestedMonthlyRate || 800
+  const sizeStr   = lead.employees != null ? lead.employees + " employees" : "size unknown"
+  const foundStr  = lead.founded   != null ? "founded " + lead.founded    : "founding year unknown"
   return aiCall(
     "You are a pricing consultant for " + lead.serviceLabel + " freelancers.\n"
     + "Client: " + lead.name + " (" + lead.btype + ") in " + (lead.city || lead.country) + "\n"
-    + "Their issues: " + (lead.problems || []).join(", ") + "\nBusiness size: " + lead.employees + " employees, founded " + lead.founded + "\n"
+    + "Their issues: " + (lead.problems || []).join(", ") + "\nBusiness size: " + sizeStr + ", " + foundStr + "\n"
     + "AI suggested rate: $" + base + "/month\n\n"
     + "Give a pricing breakdown in this format:\nRECOMMENDED RATE: $X/month\nWHY THIS RATE: (2 sentences - market context for " + lead.country + ")\n\nPRICING OPTIONS:\n• Starter Package: $X/mo - [what's included]\n• Growth Package: $X/mo - [what's included]\n• Premium Package: $X/mo - [what's included]\n\nHOW TO PITCH THE PRICE: (2 sentences of negotiation advice)\n\nNEVER GO BELOW: $X/month (and why)\n\nUnder 200 words.",
     600)

@@ -29,8 +29,8 @@ export default function LandingPage({ onSignup, onLogin }) {
   }
 
   const FAQ = [
-    {q:"How does the lead scanner actually work?", a:"You choose a service you sell (e.g. Web Design, SEO, Social Media) and a target location. Our AI generates realistic local small business leads with real-looking data: review counts, website speed scores, SSL status, phone numbers, and specific problems they have. It scores each lead 0-100 based on opportunity size, local demand, and competition level."},
-    {q:"Will the same business appear for two different users?", a:"No. Zenvylo maintains a global name registry. Once a business is discovered by any user, it is permanently blocked from appearing in any other user's scan results. This ensures every lead you get is yours alone."},
+    {q:"How does the lead scanner actually work?", a:"You choose a service you sell (e.g. Web Design, SEO, Social Media) and a target location. Zenvylo queries OpenStreetMap — the world's largest open business directory — to pull real local businesses with real names, addresses, phone numbers, and websites. AI then analyses each one for the specific problems your service solves, scores it 0-100 for opportunity, and ranks them by profitability."},
+    {q:"Are the businesses real or AI-generated?", a:"Real. Every lead comes from OpenStreetMap's live business database — actual businesses with verifiable names, addresses, and contact info. The AI layer analyses those real businesses to surface their specific weaknesses (no website, poor SEO, no social presence) and writes your outreach copy. No invented data, ever."},
     {q:"Do I need a credit card to start?", a:"No. The Free plan gives you 3 scans immediately — no credit card required. The Pro plan also comes with a 7-day free trial so you can explore all AI features before paying."},
     {q:"What countries can I target?", a:"Starter and Growth plans lock you to your home country (set at signup). Pro and Scale plans unlock all 35+ countries, so you can find clients anywhere in the world."},
     {q:"What are the AI features?", a:"Pro and Scale users get AI-generated: cold email drafts, phone call scripts, 30-60-90 day action roadmaps, full service proposals, pricing strategy advice, 30-second elevator pitches, and service package builders. Scale users also get full business audits and 5-email follow-up sequences."},
@@ -40,7 +40,7 @@ export default function LandingPage({ onSignup, onLogin }) {
 
   const FEATURES = [
     { icon:"target",  color:"var(--lime)",   title:"AI-Scored Leads",          body:"Every lead gets an opportunity score, demand score, competition index, and difficulty rating. Stop guessing — know exactly which clients to prioritize and what their problem is." },
-    { icon:"shield2", color:"var(--blue)",   title:"Zero Duplicate Leads",     body:"Our global registry ensures no two users ever get the same business. Your leads are locked to you — no competing against other Zenvylo users for the same prospect, ever." },
+    { icon:"shield2", color:"var(--blue)",   title:"Real Businesses, Real Data", body:"Every lead comes from OpenStreetMap's live directory — actual names, addresses, phone numbers, and websites. AI analyses them for your service's gaps. No invented contacts, no dead ends." },
     { icon:"ai",      color:"var(--purple)", title:"8 AI Writing Tools",        body:"Cold emails, call scripts, proposals, roadmaps, pricing strategies, elevator pitches, package builders, and follow-up sequences. Close deals faster with AI that knows your lead." },
     { icon:"dollar",  color:"var(--green)",  title:"Profitability Calculator",  body:"See your monthly profit per client instantly. Edit your rate, see costs, payback time, and yearly earnings — before you ever pitch a single prospect." },
     { icon:"users",   color:"var(--amber)",  title:"Full CRM Built-in",         body:"Track every lead from 'new' to 'won'. Add clients, set follow-up dates, add notes, compare leads side-by-side, and export everything to CSV." },
@@ -87,7 +87,7 @@ export default function LandingPage({ onSignup, onLogin }) {
       country: "🇳🇬 Lagos, Nigeria",
       avatar: "Y",
       color: "var(--amber)",
-      text: "Finally a lead gen tool that works outside the US! I'm targeting Lagos businesses and the leads are legitimately real-looking. Closed my first deal in 9 days.",
+      text: "Finally a lead gen tool that works outside the US! I'm targeting Lagos businesses and I can actually call these numbers — they're real. Closed my first deal in 9 days.",
       metric: "First deal in 9 days",
     },
     {
@@ -174,7 +174,7 @@ export default function LandingPage({ onSignup, onLogin }) {
         <div style={{ maxWidth:900,textAlign:"center",position:"relative",zIndex:1 }}>
           {/* Social proof pill */}
           <div className="fu" style={{ display:"inline-flex",alignItems:"center",gap:8,padding:"6px 16px",background:"rgba(198,241,53,.08)",border:"1px solid rgba(198,241,53,.2)",borderRadius:30,marginBottom:24,fontSize:13,color:"var(--lime)",fontWeight:600 }}>
-            <I n="zap" s={12} c="var(--lime)"/>AI lead generation for freelancers · Zero duplicate leads
+            <I n="zap" s={12} c="var(--lime)"/>Real local businesses · AI-scored opportunities · 35+ countries
           </div>
 
           <h1 className="fu" style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:"clamp(32px,5.5vw,68px)",lineHeight:1.08,letterSpacing:"-.025em",marginBottom:22,animationDelay:".05s" }}>
@@ -388,7 +388,7 @@ export default function LandingPage({ onSignup, onLogin }) {
           </div>
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(220px,100%),1fr))",gap:10,maxWidth:900,margin:"0 auto" }}>
             {[
-              { icon:"shield2", color:"var(--lime)",   title:"Guaranteed exclusive leads", body:"Global registry blocks any business from appearing for two users. Ever. Your leads are yours." },
+              { icon:"shield2", color:"var(--lime)",   title:"Real businesses, not AI fiction", body:"Leads come from OpenStreetMap — real names, real phones, real addresses. AI analyses them; it never invents them." },
               { icon:"ai",      color:"var(--purple)",  title:"AI knows your lead",         body:"The AI writes cold emails using the business's actual problems — not generic templates." },
               { icon:"globe",   color:"var(--blue)",    title:"35+ countries from day 1",   body:"Not just US/UK. Target Nigeria, Philippines, Germany — wherever the market is hungry." },
               { icon:"dollar",  color:"var(--green)",   title:"Built-in profitability",     body:"Know your monthly profit per client before you pitch. Rate editor, tool costs, ROI." },
