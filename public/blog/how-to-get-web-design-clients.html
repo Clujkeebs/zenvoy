@@ -25,7 +25,7 @@
     a{color:var(--lime);text-decoration:none}
     a:hover{text-decoration:underline}
     nav.topnav{background:rgba(12,14,19,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--brd);padding:0 40px;height:60px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
-    .logo{display:flex;align-items:center;gap:9px;font-family:var(--fh);font-weight:800;font-size:17px;color:var(--txt);text-decoration:none}
+    .logo{display:flex;align-items:center;gap:9px;white-space:nowrap;font-family:var(--fh);font-weight:800;font-size:17px;color:var(--txt);text-decoration:none}
     .logo-icon{width:30px;height:30px;background:var(--lime);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
     .nav-links{display:flex;gap:22px;margin-left:auto;align-items:center}
     .nav-links a{font-size:13px;color:var(--txt2);text-decoration:none}
@@ -61,7 +61,7 @@
 </head>
 <body>
 <nav class="topnav">
-  <a href="/" class="logo"><div class="logo-icon">🎯</div>Zen<span style="color:var(--lime)">vylo</span></a>
+  <a href="/" class="logo"><div class="logo-icon">🎯</div><span class="logo-text">Zen<span style="color:var(--lime)">vylo</span></span></a>
   <div class="nav-links">
     <a href="/">Home</a><a href="/blog/">Blog</a>
     <a href="/" class="btn-lime">Get Started Free</a>
