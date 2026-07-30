@@ -96,15 +96,32 @@ CREATE TABLE IF NOT EXISTS public.affiliate_conversions (
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.user_referrals (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  referrer_id     UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  referred_id     UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  referred_email  TEXT,
-  bonus_granted   INTEGER DEFAULT 0,
-  referred_at     TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (referrer_id, referred_id)
-);
+-- user_referrals is a VIEW derived from profiles.referred_by, not a table.
+--
+-- As found in production it was a live PII leak: owned by postgres with
+-- security_invoker unset, so it ran with the owner's rights and bypassed RLS on
+-- profiles — and SELECT was granted to `anon`. Any visitor holding the public
+-- anon key could dump every user's email, name and plan without logging in.
+--
+-- Rather than switch it to security_invoker (which would break the feature —
+-- a referrer legitimately needs to see people RLS won't show them), the view
+-- now filters to the caller inside its own definition. Elevated rights, but it
+-- can only ever return your own referrals, and auth.uid() is NULL for anon.
+CREATE OR REPLACE VIEW public.user_referrals AS
+  SELECT p.id         AS referrer_id,
+         p.ref_code   AS referrer_code,
+         p.email      AS referrer_email,
+         r.id         AS referred_user_id,
+         r.email      AS referred_email,
+         r.name       AS referred_name,
+         r.plan       AS referred_plan,
+         r.created_at AS referred_at
+    FROM public.profiles p
+    JOIN public.profiles r ON r.referred_by = p.id
+   WHERE p.id = auth.uid();
+
+REVOKE ALL ON public.user_referrals FROM anon;
+GRANT SELECT ON public.user_referrals TO authenticated;
 
 -- Webhook idempotency. Stripe retries on any non-2xx and can double-deliver.
 CREATE TABLE IF NOT EXISTS public.stripe_events (
@@ -232,13 +249,15 @@ ALTER TABLE public.clients               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scans                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.affiliates            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.affiliate_conversions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_referrals        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_calls              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stripe_events         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_actions         ENABLE ROW LEVEL SECURITY;
 
 -- Profiles ----------------------------------------------------------------
+-- Both the name used in the committed schema and the name actually deployed —
+-- production had drifted, and dropping only one would leave a stale duplicate.
 DROP POLICY IF EXISTS "read own profile"          ON public.profiles;
+DROP POLICY IF EXISTS "users read own profile"    ON public.profiles;
 DROP POLICY IF EXISTS "update own profile"        ON public.profiles;
 DROP POLICY IF EXISTS "admins read all profiles"  ON public.profiles;
 DROP POLICY IF EXISTS "admins update any profile" ON public.profiles;
@@ -290,11 +309,6 @@ CREATE POLICY "staff read conversions" ON public.affiliate_conversions
 
 -- Affiliate rows are created and paid out by the server only — no INSERT or
 -- UPDATE policy for clients.
-
--- Referrals ---------------------------------------------------------------
-DROP POLICY IF EXISTS "read own referrals" ON public.user_referrals;
-CREATE POLICY "read own referrals" ON public.user_referrals
-  FOR SELECT USING (auth.uid() = referrer_id);
 
 -- Usage + audit -----------------------------------------------------------
 DROP POLICY IF EXISTS "read own ai calls"      ON public.ai_calls;
@@ -560,10 +574,6 @@ BEGIN
   UPDATE public.profiles
      SET referrals = COALESCE(referrals, 0) + 1, bonus_scans = COALESCE(bonus_scans, 0) + 5
    WHERE id = v_referrer;
-
-  INSERT INTO public.user_referrals (referrer_id, referred_id, referred_email, bonus_granted)
-  VALUES (v_referrer, v_uid, v_email, 5)
-  ON CONFLICT (referrer_id, referred_id) DO NOTHING;
 
   RETURN jsonb_build_object('ok', TRUE, 'kind', 'user', 'bonus', 5);
 END;
