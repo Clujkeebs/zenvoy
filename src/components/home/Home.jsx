@@ -1,6 +1,6 @@
 import Icon from '../../icons/Icon'
 import { PLANS, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
-import { fmtMoney, fmtDate } from '../../utils/helpers'
+import { fmtMoney, leadTime } from '../../utils/helpers'
 import { STATUS_COLORS } from '../../constants/services'
 import { isTrialActive, getTrialDaysLeft } from '../../utils/trial'
 const I = Icon
@@ -14,7 +14,7 @@ export default function Home({ user, leads, clients, onSearch, onNav }) {
   const pipeVal   = pipeline.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
   const wonVal    = won.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
   const totalMRR  = leads.reduce((a,l)=>a+(l.status!=="lost"?(l.myMonthlyRate||l.suggestedMonthlyRate||0):0),0);
-  const recent    = [...leads].sort((a,b)=>b.addedAt-a.addedAt).slice(0,6);
+  const recent    = [...leads].sort((a,b)=>leadTime(b)-leadTime(a)).slice(0,6);
   const scansLeft = getScansLeft(user) + getBonusScans(user);
   const onTrial   = isTrialActive(user);
   const plan      = PLANS[user.plan]||PLANS.starter;

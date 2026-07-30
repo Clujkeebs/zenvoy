@@ -23,6 +23,39 @@ export const SERVICES = [
   { id:"brand",   label:"Branding & Logo Design",     icon:"tag",         problems:["Outdated logo","Inconsistent branding","No brand guidelines","Poor visual identity","Generic imagery"] },
 ]
 
+/** Look up a preset by id. */
+export const getService = id => SERVICES.find(s => s.id === id) || null
+
+/**
+ * Resolve whatever the user picked into a single shape the rest of the app can
+ * use, whether they chose a preset or typed their own service.
+ *
+ * Custom services get `id: "custom"`, which evidence.js treats as "weight every
+ * category moderately" — we don't know what they sell, so we don't pretend the
+ * scoring is tuned for it.
+ *
+ * @returns {{id:string, label:string, icon:string, problems:string[], isCustom:boolean}}
+ */
+export function resolveService(serviceId, customService) {
+  const preset = getService(serviceId)
+  if (preset) return { ...preset, isCustom: false }
+
+  const label = String(customService || serviceId || '').trim().slice(0, 60)
+  if (!label) return { ...SERVICES[0], isCustom: false }
+
+  return {
+    id: 'custom',
+    label,
+    icon: 'sparkle',
+    problems: ['Weak online presence', 'Hard to contact', 'Outdated site'],
+    isCustom: true,
+  }
+}
+
+/** Normalise a typed service for storage/dedupe — trimmed, single-spaced. */
+export const normalizeServiceName = v =>
+  String(v || '').replace(/\s+/g, ' ').trim().slice(0, 60)
+
 export const BTYPE = ["Restaurant","Dental Practice","Law Office","Real Estate Agency","Auto Repair Shop","Plumbing Company","Hair Salon","Fitness Gym","Chiropractic Clinic","Accounting Firm","HVAC Company","Pet Groomer","Roofing Contractor","Pharmacy","Landscaping Company","Photography Studio","Catering Company","Moving Company","Day Spa","Pediatric Clinic","Yoga Studio","Tutoring Center","Computer Repair","Florist","Bakery"]
 
 export const STATUSES = ["new","contacted","interested","proposal sent","negotiating","won","lost","on hold"]

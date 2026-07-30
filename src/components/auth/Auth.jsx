@@ -1,29 +1,35 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import Icon from '../../icons/Icon'
 import { COUNTRIES } from '../../constants/services'
 import * as DB from '../../utils/db'
 import { getDefaultRole } from '../../utils/roles'
 const I = Icon
 
+/** Read a referral code off the current URL, uppercased. */
+function urlRefCode() {
+  try {
+    return (new URLSearchParams(window.location.search).get('ref') || '').toUpperCase()
+  } catch {
+    return ''
+  }
+}
+
 export default function Auth({ onAuth, initialMode = "login" }) {
-  const [mode, setMode]       = useState(initialMode)
+  // A ?ref= code on the landing URL preselects signup and prefills the field.
+  const initialRef = urlRefCode()
+
+  const [mode, setMode]       = useState(initialRef ? "signup" : initialMode)
   const [name, setName]       = useState("")
   const [email, setEmail]     = useState("")
   const [country, setCountry] = useState("")
-  const [refCode, setRefCode] = useState("")
-  const [hasRef, setHasRef]   = useState(false)
+  const [refCode, setRefCode] = useState(initialRef)
+  const [hasRef]              = useState(!!initialRef)
   const [err, setErr]         = useState("")
   const [busy, setBusy]       = useState(false)
   const [sent, setSent]       = useState(false)
 
-  useEffect(() => {
-    const ref = new URLSearchParams(window.location.search).get('ref')
-    if (ref) {
-      setRefCode(ref.toUpperCase())
-      setHasRef(true)
-      setMode("signup")
-    }
-  }, [])
+  // Read once at mount rather than in an effect — deriving it during
+  // initialisation avoids a second render pass on every visit.
 
   const submit = useCallback(async (e) => {
     e?.preventDefault?.()

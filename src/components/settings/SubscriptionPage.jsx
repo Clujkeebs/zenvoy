@@ -2,7 +2,7 @@ import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
 import { PLANS, PLAN_ORDER, getScansLeft, SCAN_PACKS, getBonusScans, getScansLimit } from '../../constants/plans'
-import { startTrial, isTrialActive, getTrialDaysLeft } from '../../utils/trial'
+import { isTrialActive, getTrialDaysLeft } from '../../utils/trial'
 import { supabase } from '../../lib/supabase'
 import * as DB from '../../utils/db'
 const I = Icon
@@ -10,17 +10,18 @@ const I = Icon
 export default function SubscriptionPage({ user, onUpdate, onNav }) {
   const [showEnterprise, setShowEnterprise] = useState(false)
   const [loading, setLoading] = useState(null) // planId being loaded
+  const [showCancel, setShowCancel] = useState(false)
 
   const upgradePlan = async (planId) => {
     const plan = PLANS[planId]
     if (!plan) return
     if (plan.contactOnly) { setShowEnterprise(true); return }
 
-    // Free plan — just downgrade locally
+    // Downgrading to Free means cancelling the subscription, which only Stripe
+    // can do — the client can't write its own plan any more (and shouldn't be
+    // able to: that was a free-upgrade hole).
     if (planId === "free") {
-      const u = { ...user, plan: "free", scansUsed: 0 }
-      DB.saveUser(user.email, u)
-      onUpdate(u)
+      setShowCancel(true)
       return
     }
 
@@ -44,7 +45,9 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
       )
       const data = await res.json()
       if (data.url) {
-        window.location.href = data.url // redirect to Stripe
+        // Full navigation to Stripe Checkout — not a render-time mutation.
+        // eslint-disable-next-line react-hooks/immutability
+        window.location.href = data.url
       } else {
         alert(data.error || "Could not start checkout. Try again.")
       }
@@ -58,6 +61,35 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
   const scansRemaining = getScansLeft(user)
   const trialActive = isTrialActive(user)
   const trialDays = trialActive ? getTrialDaysLeft(user) : 0
+
+  if (showCancel) {
+    return (
+      <div style={{ textAlign: "center", padding: "80px 24px", maxWidth: 460, margin: "0 auto" }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: "50%", background: "rgba(245,166,35,.1)",
+          border: "2px solid rgba(245,166,35,.25)", display: "flex", alignItems: "center",
+          justifyContent: "center", margin: "0 auto 20px",
+        }}>
+          <I n="info" s={28} c="var(--amber)" />
+        </div>
+        <h2 style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 22, marginBottom: 10 }}>
+          Cancel your subscription
+        </h2>
+        <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+          Downgrades run through Stripe so your billing stays correct — you keep
+          your current plan until the end of the period you've already paid for,
+          then drop to Free automatically.
+        </p>
+        <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
+          Email <a href="mailto:support@zenvylo.com" style={{ color: "var(--lime)", fontWeight: 700 }}>support@zenvylo.com</a> and
+          we'll cancel it for you the same day.
+        </p>
+        <button className="btn btn-ghost" onClick={() => setShowCancel(false)}>
+          ← Back to plans
+        </button>
+      </div>
+    )
+  }
 
   if (showEnterprise) {
     return (

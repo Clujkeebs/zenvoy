@@ -7,6 +7,7 @@ import { supabase } from './lib/supabase'
 import { checkTrialExpiry, isTrialActive, getTrialDaysLeft } from './utils/trial'
 import { isAdmin, isOwner } from './utils/roles'
 import Analytics from './utils/analytics'
+import { useRoute } from './utils/router'
 
 import LandingPage from './components/landing/LandingPage'
 import AuthModal from './components/auth/AuthModal'
@@ -29,6 +30,18 @@ import AdminDashboard from './components/admin/AdminDashboard'
 import AffiliateDashboard from './components/affiliate/AffiliateDashboard'
 
 const I = Icon
+
+/** Shown when a URL names a page this account can't see. */
+function AccessDenied({ onNav }) {
+  return (
+    <div className="empty-state">
+      <div className="empty-icon"><I n="shield2" s={28} c="var(--red)" /></div>
+      <h3 style={{ fontFamily: "var(--fh)", fontWeight: 800, fontSize: 18 }}>Not available</h3>
+      <p style={{ color: "var(--txt2)", fontSize: 13 }}>This page isn't available on your account.</p>
+      <button className="btn btn-lime" style={{ marginTop: 8 }} onClick={() => onNav("home")}>Back to dashboard</button>
+    </div>
+  )
+}
 
 export default function App() {
   const [user,        setUser]        = useState(null)
@@ -63,31 +76,32 @@ export default function App() {
       try {
         // For fresh magic-link users the DB trigger may still be in-flight —
         // retry up to ~2 s before giving up.
-        let u = await DB.getUser(email)
+        let u = await DB.getUser()
         if (!u) {
           await new Promise(r => setTimeout(r, 700))
-          u = await DB.getUser(email)
+          u = await DB.getUser()
         }
         if (!u) {
           await new Promise(r => setTimeout(r, 1200))
-          u = await DB.getUser(email)
+          u = await DB.getUser()
         }
         if (!u) {
           if (mounted) await DB.clearSession()
           return false
         }
 
+        // Display-only trial downgrade. The month rollover and the real plan
+        // now live in the database (consume_scan / the Stripe webhook) — the
+        // browser used to reset scan counts on its own clock and post them.
         u = checkTrialExpiry(u)
-        // Monthly scan reset
-        const resetDate = u.scansResetAt ? new Date(u.scansResetAt) : new Date(0)
-        const now = new Date()
-        if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
-          u = { ...u, scansUsed: 0, scansResetAt: now.toISOString() }
-        }
-        DB.saveUser(email, u) // fire-and-forget
 
-        // Process any referral stored before the magic link was sent
-        DB.processPendingRef(email).catch(() => {})
+        // Apply a referral code captured before the magic link was sent.
+        const claimed = await DB.processPendingRef()
+        if (claimed?.ok) {
+          // Bonus scans landed server-side; pick them up.
+          const fresh = await DB.getUser()
+          if (fresh) u = checkTrialExpiry(fresh)
+        }
 
         // Analytics identify
         Analytics.identify(email, { plan: u.plan, country: u.country, name: u.name })
@@ -97,7 +111,7 @@ export default function App() {
 
         if (mounted) {
           setUser(u)
-          const [lds, cls] = await Promise.all([DB.getLeads(email), DB.getClients(email)])
+          const [lds, cls] = await Promise.all([DB.getLeads(), DB.getClients()])
           if (mounted) {
             setLeads(lds)
             setClients(cls)
@@ -107,7 +121,7 @@ export default function App() {
         return true
       } catch (e) {
         console.error('Session boot error:', e)
-        if (mounted) try { await DB.clearSession() } catch (_) {}
+        if (mounted) try { await DB.clearSession() } catch (signOutErr) { console.error('Sign-out failed:', signOutErr) }
         return false
       }
     }
@@ -120,7 +134,7 @@ export default function App() {
         await bootSession(session)
       } catch (e) {
         console.error('Init error:', e)
-        try { await DB.clearSession() } catch (_) {}
+        try { await DB.clearSession() } catch (signOutErr) { console.error('Sign-out failed:', signOutErr) }
       }
       if (mounted) setLoading(false)
     }
@@ -183,7 +197,7 @@ export default function App() {
     Analytics.identify(u.email, { plan: u.plan, country: u.country, name: u.name })
     if (isNew) Analytics.signupCompleted(u.plan, u.country)
     else Analytics.loginCompleted()
-    const [lds, cls] = await Promise.all([DB.getLeads(u.email), DB.getClients(u.email)])
+    const [lds, cls] = await Promise.all([DB.getLeads(), DB.getClients()])
     setLeads(lds)
     setClients(cls)
     setAuthMode(null)
@@ -199,31 +213,39 @@ export default function App() {
   const doneBoard = useCallback(() => {
     Analytics.onboardingCompleted()
     const u = { ...user, onboarded: true }
-    DB.saveUser(user.email, u) // fire-and-forget
+    DB.updateOwnProfile({ onboarded: true }) // fire-and-forget
     setUser(u); setShowBoard(false)
   }, [user])
 
   // ─── Lead / Client mutations ─────────────────────────
   // State updates are instant, Supabase syncs in background
-  const handleLeads = useCallback(async (newLeads, updUser) => {
+  const handleLeads = useCallback(async (newLeads, quota) => {
     Analytics.scanCompleted(newLeads[0]?.serviceId || 'unknown', newLeads.length)
-    setLeads(prev => [...newLeads, ...prev])
-    setUser(updUser)
     setShowSearch(false)
-    showToast("Found " + newLeads.length + " new leads!")
     setTab("leads")
-    // Insert to DB and update with server-generated UUIDs
+
+    // Quota values come back from consume_scan — the server's numbers, not ours.
+    setUser(prev => prev ? { ...prev, ...quota } : prev)
+
+    // Show the leads immediately, then reconcile with what the database stored.
+    setLeads(prev => [...newLeads, ...prev])
+    showToast("Found " + newLeads.length + " new leads!")
+
     try {
       const saved = await DB.insertLeads(newLeads)
       if (saved && saved.length) {
         setLeads(prev => {
-          // Replace the temporary leads with DB versions (have real UUIDs)
           const withoutTemp = prev.filter(l => !String(l.id).startsWith('l_'))
           return [...saved, ...withoutTemp]
         })
       }
     } catch (e) {
+      // Previously this was swallowed: the toast said "Found 8 leads" and they
+      // silently vanished on the next reload. Say so and drop the optimistic
+      // rows so what's on screen matches what's stored.
       console.error('Lead save error:', e)
+      setLeads(prev => prev.filter(l => !String(l.id).startsWith('l_')))
+      showToast("Couldn't save those leads — please run the scan again.")
     }
   }, [showToast])
 
@@ -415,12 +437,16 @@ export default function App() {
         {tab === "tools"        && <ToolsPage user={user} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "analytics"    && <AnalyticsPage leads={leads} clients={clients} onNav={setTab} />}
         {tab === "history"      && <HistoryPage user={user} onNav={setTab} />}
-        {tab === "subscription" && <SubscriptionPage user={user} onUpdate={u => { setUser(u); DB.saveUser(u.email, u) }} onNav={setTab} />}
-        {tab === "settings"     && <SettingsPage user={user} onUpdate={u => { setUser(u); DB.saveUser(u.email, u) }} onLogout={logout} onGoSubscription={() => setTab("subscription")} onNav={setTab} />}
+        {tab === "subscription" && <SubscriptionPage user={user} onUpdate={u => { setUser(u); DB.updateOwnProfile(u) }} onNav={setTab} />}
+        {tab === "settings"     && <SettingsPage user={user} onUpdate={u => { setUser(u); DB.updateOwnProfile(u) }} onLogout={logout} onGoSubscription={() => setTab("subscription")} onNav={setTab} />}
         {tab === "enterprise"   && <EnterprisePage onNav={setTab} />}
         {tab === "support"      && <SupportPage onNav={setTab} />}
-        {tab === "admin"        && <AdminDashboard user={user} onNav={setTab} />}
-        {tab === "affiliate"    && <AffiliateDashboard user={user} />}
+        {tab === "admin"        && (isAdmin(user)
+          ? <AdminDashboard user={user} onNav={setTab} />
+          : <AccessDenied onNav={setTab} />)}
+        {tab === "affiliate"    && ((user?.affiliateId || user?.isAffiliate)
+          ? <AffiliateDashboard user={user} />
+          : <AccessDenied onNav={setTab} />)}
         </div>
       </main>
 
@@ -478,7 +504,7 @@ export default function App() {
         </div>
       )}
 
-      {showSearch && <SearchModal user={user} onClose={() => setShowSearch(false)} onDone={handleLeads} />}
+      {showSearch && <SearchModal user={user} onClose={() => setShowSearch(false)} onDone={handleLeads} onUpgrade={handleUpgrade} />}
       {showBoard && <OnboardOverlay onDone={doneBoard} />}
       {upgradeFor && <UpgradeModal feature={upgradeFor.feature} requiredPlan={upgradeFor.plan} onClose={() => setUpgradeFor(null)} onGoSettings={() => { setTab("settings"); setUpgradeFor(null) }} />}
       <Toast msg={toast} />

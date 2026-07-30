@@ -1,7 +1,9 @@
 import { useState, memo } from 'react'
 import Icon from '../../icons/Icon'
 import { STATUS_COLORS, STATUSES } from '../../constants/services'
-import { scoreColor, demandColor } from '../../utils/helpers'
+import { scoreColor, timeAgo } from '../../utils/helpers'
+import { opportunityLabel } from '../../utils/evidence'
+import * as DB from '../../utils/db'
 import { genOutreach, genRoadmap, genProposal, genAudit, genPricingAdvice, genScript, genServicePackages, genFollowUpSequence } from '../../utils/ai'
 const I = Icon
 
@@ -40,7 +42,31 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
   const [myRate,       setMyRate]       = useState(String(lead.myMonthlyRate || lead.suggestedMonthlyRate || ""));
   const [copied,       setCopied]       = useState("");
 
+  const findings = lead.findings || [];
+  const opp = opportunityLabel(lead.score, findings.length);
   const sc  = scoreColor(lead.score);
+
+  const [reBusy, setReBusy] = useState(false);
+  const [reErr,  setReErr]  = useState("");
+
+  /* Re-measure the site on demand. A prospect who fixed their SSL last week
+     shouldn't still show up as insecure when you pick up the phone. */
+  const reAudit = async () => {
+    setReBusy(true); setReErr("");
+    try {
+      const measurement = await DB.auditSite(lead.website, lead.id);
+      const { deriveFindings, scoreFindings } = await import('../../utils/evidence');
+      const all = deriveFindings(lead, measurement);
+      const { score, findings: scored } = scoreFindings(all, lead.serviceId);
+      onUpdate({ ...lead, siteMeasurement: measurement, findings: scored, score,
+                 auditedAt: measurement.measuredAt, ssl: measurement.https ?? lead.ssl,
+                 speed: measurement.responseMs ?? lead.speed,
+                 problems: scored.slice(0,5).map(f=>f.label) });
+    } catch (e) {
+      setReErr(e.message || "Couldn't re-check that site.");
+    }
+    setReBusy(false);
+  };
   const upd = ch => onUpdate({ ...lead, ...ch });
 
   const copy = (txt, key) => { navigator.clipboard.writeText(txt); setCopied(key); setTimeout(()=>setCopied(""),2000); };
@@ -61,8 +87,6 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
 
   const saveRate = () => { const n=parseInt(myRate)||0; upd({myMonthlyRate:n}); };
 
-  const satColor  = { underserved:"var(--green)", competitive:"var(--amber)", saturated:"var(--red)" };
-  const diffColor = { easy:"var(--green)", medium:"var(--amber)", hard:"var(--red)" };
   const myRateNum     = parseInt(myRate)||lead.myMonthlyRate||lead.suggestedMonthlyRate||0;
   const toolsCost     = lead.toolsCostMonthly||0;
   const profit        = myRateNum - toolsCost;
@@ -123,13 +147,19 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
               </div>
             </div>
           </div>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:7 }}>
-            {(lead.problems||[]).map(p=><span key={p} className="chip c-amber" style={{ fontSize:10 }}>{p}</span>)}
-            {lead.marketSaturation && (
-              <span style={{ fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,border:"1.5px solid",
-                color:satColor[lead.marketSaturation],borderColor:satColor[lead.marketSaturation]+"44",
-                background:satColor[lead.marketSaturation]+"11" }}>
-                {lead.marketSaturation==="underserved"?"🟢":lead.marketSaturation==="competitive"?"🟡":"🔴"} {lead.marketSaturation}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:7, alignItems:"center" }}>
+            {findings.slice(0,4).map(f=>(
+              <span key={f.id} className="chip c-amber" style={{ fontSize:10 }} title={f.evidence}>{f.label}</span>
+            ))}
+            {findings.length>4 && (
+              <span className="chip c-gray" style={{ fontSize:10 }}>+{findings.length-4} more</span>
+            )}
+            {findings.length===0 && (
+              <span className="chip c-gray" style={{ fontSize:10 }}>No measurable issues</span>
+            )}
+            {lead.auditedAt && (
+              <span style={{ fontSize:10, color:"var(--txt3)", display:"flex", alignItems:"center", gap:3 }}>
+                <I n="check" s={9} c="var(--green)"/>verified {timeAgo(lead.auditedAt)}
               </span>
             )}
           </div>
@@ -139,19 +169,51 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
       {open && (
         <div className="fi">
           <div className="sep"/>
-          {/* Score grid */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", borderBottom:"1.5px solid var(--brd)" }}>
-            {[
-              { l:"Opp Score",   v:lead.score,                 c:sc,                                                                                    tip:"Overall opportunity quality 0-100" },
-              { l:"Demand",      v:lead.demandScore||"?",       c:demandColor(lead.demandScore||50),                                                      tip:"Market demand for this service" },
-              { l:"Competition", v:lead.competitionScore||"?",  c:(lead.competitionScore||50)>60?"var(--red)":(lead.competitionScore||50)>35?"var(--amber)":"var(--green)", tip:"Lower = fewer competitors" },
-              { l:"Difficulty",  v:lead.difficultyRating||"?", c:diffColor[lead.difficultyRating]||"var(--txt)",                                          tip:"How hard to close this client" },
-            ].map(st=>(
-              <div key={st.l} title={st.tip} style={{ padding:"10px 8px",textAlign:"center",background:"var(--s2)",borderRight:"1.5px solid var(--brd)",cursor:"help" }}>
-                <div style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:16,color:st.c }}>{st.v}</div>
-                <div style={{ fontSize:10,color:"var(--txt3)",marginTop:2 }}>{st.l}</div>
+          {/* Verified evidence — every line here was measured, not guessed */}
+          <div style={{ padding:"14px 18px", borderBottom:"1.5px solid var(--brd)", background:"var(--s2)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:findings.length?11:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                <div style={{ fontFamily:"var(--fh)", fontWeight:900, fontSize:20, color:sc }}>{lead.score}</div>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:sc }}>{opp.label}</div>
+                  <div style={{ fontSize:10, color:"var(--txt3)" }}>
+                    {findings.length
+                      ? `${findings.length} verified issue${findings.length>1?"s":""} for ${lead.serviceCustom||lead.serviceLabel}`
+                      : "Nothing measurable found — qualify manually"}
+                  </div>
+                </div>
+              </div>
+              {lead.website && (
+                <button className="btn btn-ghost" style={{ fontSize:11, padding:"5px 10px" }}
+                  disabled={reBusy} onClick={reAudit}>
+                  <I n="refresh" s={11}/>{reBusy?"Checking…":"Re-check site"}
+                </button>
+              )}
+            </div>
+
+            {reErr && (
+              <div style={{ fontSize:11, color:"var(--red)", marginBottom:8 }}>{reErr}</div>
+            )}
+
+            {findings.map(f=>(
+              <div key={f.id} style={{ display:"flex", gap:9, alignItems:"flex-start", padding:"7px 0", borderTop:"1px solid var(--brd)" }}>
+                <div style={{ width:6, height:6, borderRadius:"50%", marginTop:6, flexShrink:0,
+                  background:f.weight>=22?"var(--red)":f.weight>=12?"var(--amber)":"var(--txt3)" }}/>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"var(--txt)" }}>{f.label}</div>
+                  <div style={{ fontSize:11, color:"var(--txt2)", lineHeight:1.6, marginTop:1 }}>{f.evidence}</div>
+                  {f.fix && (
+                    <div style={{ fontSize:11, color:"var(--lime)", marginTop:3 }}>→ {f.fix}</div>
+                  )}
+                </div>
               </div>
             ))}
+
+            {!lead.website && (
+              <div style={{ fontSize:11, color:"var(--txt3)", marginTop:8, fontStyle:"italic" }}>
+                No website on record, so there was nothing to measure — the gap itself is the pitch.
+              </div>
+            )}
           </div>
 
           {/* Pricing panel */}
