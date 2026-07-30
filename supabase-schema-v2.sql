@@ -1,3 +1,17 @@
+-- ⚠️  SUPERSEDED — DO NOT RUN THIS FILE
+--
+-- Kept only as a record of the original schema. It is known to be wrong in
+-- ways that broke production:
+--   • role CHECK omits 'owner', which the app depends on
+--   • the profiles admin policies query profiles, causing RLS recursion (500s)
+--   • "update own profile" has no WITH CHECK and no column limits, so a client
+--     could grant itself any plan or the admin role
+--   • it never contained the affiliates / affiliate_conversions / user_referrals
+--     tables that the app queries
+--
+-- The current schema is supabase/migrations/20260729000000_hardening.sql.
+-- See DEPLOY.md.
+
 -- ============================================================
 -- ZENVOY v3.2 — Complete Database Schema
 -- Paste this entire file into Supabase → SQL Editor → Run
