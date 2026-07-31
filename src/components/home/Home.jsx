@@ -4,14 +4,15 @@ import { fmtMoney, leadTime } from '../../utils/helpers'
 import { STATUS_COLORS } from '../../constants/services'
 import { isTrialActive, getTrialDaysLeft } from '../../utils/trial'
 import WorkQueue from './WorkQueue'
+import GoalTracker from './GoalTracker'
 const I = Icon
 
-export default function Home({ user, leads, clients, onSearch, onNav }) {
+export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser }) {
   const saved     = leads.filter(l=>l.saved);
   const pipeline  = leads.filter(l=>["contacted","interested","proposal sent","negotiating"].includes(l.status));
   const won       = leads.filter(l=>l.status==="won");
   const pipeVal   = pipeline.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
-  const wonVal    = won.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
+  const wonVal    = won.reduce((a,l)=>a+(l.wonValue||l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
   const totalMRR  = leads.reduce((a,l)=>a+(l.status!=="lost"?(l.myMonthlyRate||l.suggestedMonthlyRate||0):0),0);
   const recent    = [...leads].sort((a,b)=>leadTime(b)-leadTime(a)).slice(0,6);
   const scansLeft = getScansLeft(user) + getBonusScans(user);
@@ -61,6 +62,8 @@ export default function Home({ user, leads, clients, onSearch, onNav }) {
         {scansLeft===0 && <button style={{ fontSize:11,color:"var(--blue)",fontWeight:700,cursor:"pointer",background:"none",border:"none" }}
           onClick={()=>onNav("settings")}>Upgrade now →</button>}
       </div>
+
+      <GoalTracker user={user} leads={leads} onUpdate={onUpdateUser} onSearch={onSearch} />
 
       <WorkQueue leads={leads} onNav={onNav} onSearch={onSearch} />
 

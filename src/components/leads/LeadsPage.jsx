@@ -4,6 +4,7 @@ import Icon from '../../icons/Icon'
 import LeadCard from './LeadCard'
 import { STATUSES, STATUS_COLORS, SERVICES } from '../../constants/services'
 import { canAI } from '../../constants/plans'
+import { recordTouch, closeDeal } from '../../utils/outreach'
 import { csvExport, scoreColor, leadTime, fmtDate } from '../../utils/helpers'
 const I = Icon
 
@@ -15,6 +16,17 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
   const [savedOnly, setSavedOnly] = useState(false);
   const [cmpIds,    setCmpIds]    = useState([]);
   const [showCmp,   setShowCmp]   = useState(false);
+  const [bulkDate,  setBulkDate]  = useState("");
+
+  /* Bulk actions. At 40+ leads, updating status one card at a time is the
+     single most tedious thing in the app — this makes a scan's worth of
+     follow-up admin a couple of clicks. */
+  const selected = leads.filter(l => cmpIds.includes(l.id));
+
+  const bulk = (fn) => {
+    selected.forEach(l => onUpdate({ ...l, ...fn(l) }));
+    setCmpIds([]);
+  };
 
   const filtered = leads
     .filter(l=>status==="all"?true:l.status===status)
@@ -22,10 +34,12 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
     .filter(l=>!q||l.name.toLowerCase().includes(q.toLowerCase())||(l.btype||"").toLowerCase().includes(q.toLowerCase())||(l.city||"").toLowerCase().includes(q.toLowerCase()))
     .sort((a,b)=>sort==="score"?(b.score-a.score):sort==="value"?((b.myMonthlyRate||b.suggestedMonthlyRate||0)-(a.myMonthlyRate||a.suggestedMonthlyRate||0)):sort==="evidence"?((b.findings?.length||0)-(a.findings?.length||0)):(leadTime(b)-leadTime(a)));
 
-  const toggleCmp = id => {
-    if(cmpIds.includes(id)) setCmpIds(cmpIds.filter(x=>x!==id));
-    else if(cmpIds.length<3) setCmpIds([...cmpIds,id]);
-  };
+  const toggleCmp = id =>
+    setCmpIds(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
+
+  const allShownSelected = filtered.length>0 && filtered.every(l=>cmpIds.includes(l.id));
+  const toggleAllShown = () =>
+    setCmpIds(allShownSelected ? [] : filtered.map(l=>l.id));
 
   return (
     <div style={{overflowX:"hidden",minWidth:0}}>
@@ -52,6 +66,11 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
         <button className={"btn "+(savedOnly?"btn-lime":"btn-ghost")} onClick={()=>setSavedOnly(!savedOnly)}>
           <I n="save" s={13}/>{savedOnly?"Show All":"Saved Only"}
         </button>
+        {filtered.length>0 && (
+          <button className="btn btn-ghost" onClick={toggleAllShown} style={{ fontSize:12 }}>
+            <I n="check" s={12}/>{allShownSelected?"Deselect all":`Select all (${filtered.length})`}
+          </button>
+        )}
       </div>
 
       <div style={{ display:"flex",gap:4,marginBottom:14,flexWrap:"wrap" }}>
@@ -69,12 +88,46 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
       </div>
 
       {cmpIds.length>0 && (
-        <div style={{ marginBottom:11,padding:"8px 13px",background:"rgba(61,142,248,.06)",border:"1.5px solid rgba(61,142,248,.18)",borderRadius:9,
-          display:"flex",alignItems:"center",gap:9,fontSize:13 }}>
+        <div style={{ marginBottom:11,padding:"10px 13px",background:"rgba(61,142,248,.06)",border:"1.5px solid rgba(61,142,248,.18)",borderRadius:9,
+          display:"flex",alignItems:"center",gap:8,fontSize:13,flexWrap:"wrap" }}>
           <I n="layers" s={13} c="var(--blue)"/>
-          <span style={{ color:"var(--blue)" }}>Comparing {cmpIds.length} lead{cmpIds.length>1?"s":""}.</span>
-          <span style={{ color:"var(--txt3)" }}>Select up to 3.</span>
-          <button style={{ marginLeft:"auto",fontSize:12,color:"var(--red)",cursor:"pointer",background:"none",border:"none" }} onClick={()=>setCmpIds([])}>Clear</button>
+          <span style={{ color:"var(--blue)",fontWeight:700 }}>{cmpIds.length} selected</span>
+
+          <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px" }}
+            title="Log an outreach touch and schedule the next follow-up"
+            onClick={()=>bulk(l=>recordTouch(l))}>
+            <I n="mail" s={11}/>Log outreach
+          </button>
+
+          <select className="inp" style={{ width:"auto",fontSize:12,padding:"6px 9px" }}
+            value="" onChange={e=>{ const v=e.target.value; if(v) bulk(()=>({status:v})); }}>
+            <option value="">Set status…</option>
+            {STATUSES.map(st=><option key={st} value={st}>{st.charAt(0).toUpperCase()+st.slice(1)}</option>)}
+          </select>
+
+          <input type="date" className="inp" value={bulkDate}
+            style={{ width:"auto",fontSize:12,padding:"6px 9px" }}
+            onChange={e=>{ setBulkDate(e.target.value); if(e.target.value) bulk(()=>({followUpDate:e.target.value})); }}
+            title="Set follow-up date on all selected"/>
+
+          <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px",color:"var(--txt3)" }}
+            onClick={()=>bulk(l=>closeDeal(l,{won:false,reason:"No reply"}))}>
+            Mark lost
+          </button>
+
+          {cmpIds.length>=2 && cmpIds.length<=3 && (
+            <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px" }} onClick={()=>setShowCmp(true)}>
+              <I n="layers" s={11}/>Compare
+            </button>
+          )}
+
+          <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px" }}
+            onClick={()=>csvExport(selected)}>
+            <I n="download" s={11}/>Export
+          </button>
+
+          <button style={{ marginLeft:"auto",fontSize:12,color:"var(--red)",cursor:"pointer",background:"none",border:"none" }}
+            onClick={()=>setCmpIds([])}>Clear</button>
         </div>
       )}
 
@@ -111,7 +164,7 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
       }
 
       {/* Compare modal */}
-      {showCmp && cmpIds.length>=2 && (()=>{
+      {showCmp && cmpIds.length>=2 && cmpIds.length<=3 && (()=>{
         const cmpLeads=leads.filter(l=>cmpIds.includes(l.id));
         return (
           <div className="modal-wrap" onClick={()=>setShowCmp(false)}>

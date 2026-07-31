@@ -3,6 +3,8 @@ import Icon from '../../icons/Icon'
 import { STATUS_COLORS, STATUSES } from '../../constants/services'
 import { scoreColor, timeAgo } from '../../utils/helpers'
 import { opportunityLabel } from '../../utils/evidence'
+import { recordTouch, undoTouch, outreachSummary, currentStep, nextStep, closeDeal, LOST_REASONS, MAX_STEP } from '../../utils/outreach'
+import AuditReport from './AuditReport'
 import * as DB from '../../utils/db'
 import { genOutreach, genRoadmap, genProposal, genAudit, genPricingAdvice, genScript, genServicePackages, genFollowUpSequence } from '../../utils/ai'
 const I = Icon
@@ -44,8 +46,15 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
 
   const findings = lead.findings || [];
   const opp = opportunityLabel(lead.score, findings.length);
+  const step = currentStep(lead);
+  const next = nextStep(lead);
+  const touch = outreachSummary(lead);
   const sc  = scoreColor(lead.score);
 
+  const [showReport, setShowReport] = useState(false);
+  const [closeMode,  setCloseMode]  = useState(null);   // "won" | "lost"
+  const [closeValue, setCloseValue] = useState(String(lead.myMonthlyRate || lead.suggestedMonthlyRate || ""));
+  const [closeReason,setCloseReason]= useState(LOST_REASONS[0]);
   const [reBusy, setReBusy] = useState(false);
   const [reErr,  setReErr]  = useState("");
 
@@ -312,6 +321,81 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
             )}
           </div>
 
+          {/* Outreach tracker — the sequence only happens if something remembers it */}
+          {!["won","lost"].includes(lead.status) && (
+            <div style={{ padding:"11px 18px", borderTop:"1.5px solid var(--brd)", background:"var(--s2)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                <div style={{ display:"flex", gap:3 }}>
+                  {Array.from({length:MAX_STEP}).map((_,i)=>(
+                    <div key={i} title={`Touch ${i+1}`} style={{
+                      width:16, height:5, borderRadius:3,
+                      background: i < step ? "var(--lime)" : "var(--s3)" }}/>
+                  ))}
+                </div>
+                <span style={{ fontSize:12, fontWeight:700,
+                  color: touch.tone==="amber" ? "var(--amber)" : touch.tone==="lime" ? "var(--lime)" : "var(--txt2)" }}>
+                  {touch.label}
+                </span>
+                {next && (
+                  <span style={{ fontSize:11, color:"var(--txt3)", flex:1, minWidth:120 }}>{next.hint}</span>
+                )}
+                <div style={{ display:"flex", gap:5, marginLeft:"auto" }}>
+                  {step > 0 && (
+                    <button className="btn btn-ghost" style={{ fontSize:11, padding:"5px 9px" }}
+                      title="Undo the last logged touch"
+                      onClick={()=>{ const patch = undoTouch(lead); if (patch) upd(patch); }}>
+                      <I n="refresh" s={11}/>Undo
+                    </button>
+                  )}
+                  {next && (
+                    <button className="btn btn-lime" style={{ fontSize:11, padding:"5px 11px" }}
+                      onClick={()=>upd(recordTouch(lead,{ kind: next.kind }))}>
+                      <I n="check" s={11}/>Log {next.kind === "call" ? "call" : "email"} sent
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Close the deal — a won deal needs a real number or the analytics lie */}
+          {closeMode && (
+            <div style={{ padding:"13px 18px", borderTop:"1.5px solid var(--brd)",
+              background: closeMode==="won" ? "rgba(52,212,122,.05)" : "rgba(245,66,66,.04)" }}>
+              {closeMode==="won" ? (
+                <div style={{ display:"flex", gap:9, alignItems:"center", flexWrap:"wrap" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:"var(--green)" }}>
+                    What are they actually paying you?
+                  </span>
+                  <input className="inp" type="number" min="0" value={closeValue}
+                    onChange={e=>setCloseValue(e.target.value)}
+                    style={{ width:120, fontSize:13, padding:"7px 10px" }} placeholder="0"/>
+                  <span style={{ fontSize:12, color:"var(--txt3)" }}>/month</span>
+                  <button className="btn btn-lime" style={{ fontSize:12, padding:"7px 13px" }}
+                    onClick={()=>{ upd(closeDeal(lead,{ won:true, value:closeValue })); setCloseMode(null); }}>
+                    Mark won
+                  </button>
+                  <button className="btn btn-ghost" style={{ fontSize:12, padding:"7px 10px" }}
+                    onClick={()=>setCloseMode(null)}>Cancel</button>
+                </div>
+              ) : (
+                <div style={{ display:"flex", gap:9, alignItems:"center", flexWrap:"wrap" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:"var(--txt2)" }}>Why did it not land?</span>
+                  <select className="inp" value={closeReason} onChange={e=>setCloseReason(e.target.value)}
+                    style={{ width:"auto", fontSize:13, padding:"7px 10px" }}>
+                    {LOST_REASONS.map(r=><option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <button className="btn btn-dark" style={{ fontSize:12, padding:"7px 13px" }}
+                    onClick={()=>{ upd(closeDeal(lead,{ won:false, reason:closeReason })); setCloseMode(null); }}>
+                    Mark lost
+                  </button>
+                  <button className="btn btn-ghost" style={{ fontSize:12, padding:"7px 10px" }}
+                    onClick={()=>setCloseMode(null)}>Cancel</button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Actions */}
           <div style={{ padding:"10px 18px 11px",display:"flex",flexWrap:"wrap",gap:5,alignItems:"center",WebkitOverflowScrolling:"touch" }}>
             <select value={lead.status} onChange={e=>upd({status:e.target.value})}
@@ -321,7 +405,28 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
             <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px" }} onClick={()=>upd({saved:!lead.saved})}>
               <I n="save" s={12}/>{lead.saved?"Saved ✓":"Save"}
             </button>
-            {lead.status==="won" && <span style={{ fontSize:11,color:"var(--green)",fontWeight:700,padding:"6px 10px",background:"rgba(52,212,122,.08)",borderRadius:8,border:"1px solid rgba(52,212,122,.2)" }}>🎉 Won! Add to Clients tab</span>}
+            {!["won","lost"].includes(lead.status) && (
+              <>
+                <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px",color:"var(--green)" }}
+                  onClick={()=>setCloseMode("won")}><I n="check" s={12}/>Won</button>
+                <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px",color:"var(--txt3)" }}
+                  onClick={()=>setCloseMode("lost")}><I n="x" s={12}/>Lost</button>
+              </>
+            )}
+            {lead.status==="won" && (
+              <span style={{ fontSize:11,color:"var(--green)",fontWeight:700,padding:"6px 10px",background:"rgba(52,212,122,.08)",borderRadius:8,border:"1px solid rgba(52,212,122,.2)" }}>
+                Won{lead.wonValue?` · $${lead.wonValue.toLocaleString()}/mo`:""}
+              </span>
+            )}
+            {lead.status==="lost" && lead.lostReason && (
+              <span style={{ fontSize:11,color:"var(--txt3)",padding:"6px 10px",background:"var(--s2)",borderRadius:8,border:"1px solid var(--brd)" }}>
+                Lost — {lead.lostReason}
+              </span>
+            )}
+            <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px" }}
+              onClick={()=>setShowReport(true)} title="A clean report you can send to the prospect">
+              <I n="note" s={12}/>Client report
+            </button>
             <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px" }} onClick={()=>setNoteOpen(!noteOpen)}>
               <I n="note" s={12}/>Notes
             </button>
@@ -404,7 +509,11 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
             </div>
           )}
 
-          {/* Outreach panel (special because of type toggle) */}
+          {showReport && (
+        <AuditReport lead={lead} user={{ name:userName }} onClose={()=>setShowReport(false)} />
+      )}
+
+      {/* Outreach panel (special because of type toggle) */}
           {showOut && (
             <div className="fi" style={{ margin:"0 18px 13px",border:"1.5px solid rgba(61,142,248,.25)",borderRadius:10,overflow:"hidden" }}>
               <div style={{ background:"rgba(61,142,248,.07)",padding:"8px 13px",display:"flex",alignItems:"center",gap:7,borderBottom:"1.5px solid rgba(61,142,248,.15)" }}>

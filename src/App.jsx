@@ -278,6 +278,13 @@ export default function App() {
     showToast("Removed.")
   }, [showToast])
 
+  /** Save a self-editable profile field (goal, name, country…). */
+  const updateProfile = useCallback(async u => {
+    setUser(u)
+    const { error } = await DB.updateOwnProfile(u)
+    if (error) showToast("Couldn't save that — try again.")
+  }, [showToast])
+
   const handleUpgrade = useCallback((feature, plan) => {
     Analytics.upgradeModalSeen(feature, plan)
     setUpgradeFor({ feature, plan })
@@ -431,7 +438,7 @@ export default function App() {
 
       <main className="app-main">
         <div key={tab} className="fu" style={{ minHeight: "100%", animationDuration: ".18s" }}>
-        {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} />}
+        {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} />}
         {tab === "leads"        && <LeadsPage user={user} leads={leads} onUpdate={updLead} onDelete={delLead} onSearch={openSearch} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "clients"      && <ClientsPage clients={clients} leads={leads} onAdd={addClient} onUpdate={updClient} onDelete={delClient} onNav={setTab} />}
         {tab === "tools"        && <ToolsPage user={user} onUpgrade={handleUpgrade} onNav={setTab} />}

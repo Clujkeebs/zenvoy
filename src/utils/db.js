@@ -147,6 +147,7 @@ export async function getUser() {
  */
 const OWN_PROFILE_FIELDS = [
   'name', 'country', 'svc', 'currency', 'onboarded', 'profileImageUrl', 'customServices',
+  'monthlyGoal',
 ]
 
 /** Update the signed-in user's own profile. Safe to fire-and-forget. */
@@ -314,7 +315,8 @@ const LEAD_COLS = new Set([
   'competition_score', 'difficulty_rating', 'market_saturation', 'country', 'city',
   'service_id', 'service_label', 'service_custom', 'status', 'saved', 'notes',
   'follow_up_date', 'user_id', 'site_measurement', 'findings', 'audited_at',
-  'osm_id', 'contacted_at', 'won_value',
+  'osm_id', 'contacted_at', 'won_value', 'outreach_step', 'last_contact_at',
+  'outreach_log', 'lost_reason', 'closed_at',
 ])
 
 export async function insertLeads(leads) {

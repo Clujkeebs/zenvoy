@@ -247,3 +247,22 @@ button:focus:not(:focus-visible){outline:none}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+
+/* ── Client-ready report ────────────────────────────────────────────────
+   The report is a document, not app chrome: white paper on screen so what
+   you see is what prints, and everything else stripped out on print. */
+.report-sheet { color-scheme: light; }
+.report-sheet h1, .report-sheet h2, .report-sheet strong { font-family: var(--fh); }
+
+@media print {
+  body * { visibility: hidden; }
+  .report-sheet, .report-sheet * { visibility: visible; }
+  .report-sheet {
+    position: absolute; left: 0; top: 0; width: 100%;
+    padding: 0 !important; box-shadow: none !important;
+  }
+  .report-toolbar { display: none !important; }
+  .modal-wrap { position: static; background: none; padding: 0; }
+  .modal { max-height: none !important; overflow: visible !important; border: none !important; }
+  @page { margin: 16mm; }
+}
