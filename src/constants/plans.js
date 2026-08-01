@@ -50,6 +50,19 @@ export const canAI          = u => _isOwner(u) || ["pro","scale","enterprise"].i
 export const canScale       = u => _isOwner(u) || ["scale","enterprise"].includes(u?.plan)
 export const canMulti       = u => _isOwner(u) || ["pro","scale","enterprise"].includes(u?.plan)
 export const getLeadsPerScan = u => _isOwner(u) ? 9999 : (PLANS[u?.plan]?.leadsPerScan || 5)
+
+/**
+ * Ceiling for the "how many leads?" control on a scan.
+ *
+ * getLeadsPerScan reports the plan entitlement, which is Infinity-ish for the
+ * owner. A scan still has to fetch and measure each result, so the picker is
+ * capped at something a single scan can actually deliver.
+ */
+export const MAX_LEADS_PER_SCAN = 25
+export const getLeadCap = u => Math.min(getLeadsPerScan(u), MAX_LEADS_PER_SCAN)
+
+/** Below this the plan gives no room to choose, so we don't show a picker. */
+export const canChooseLeadCount = u => getLeadCap(u) > 5
 export const getScansLimit  = u => _isOwner(u) ? Infinity : (PLANS[u?.plan]?.scans || 3)
 export const getScansLeft   = u => _isOwner(u) ? Infinity : Math.max(0, getScansLimit(u) - (u?.scansUsed || 0))
 export const getBonusScans  = u => u?.bonusScans || 0

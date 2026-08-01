@@ -92,8 +92,11 @@ const AUDIT_CAP = 24
  */
 export async function generateLeads({
   service, customService, country, city, existingNames = [],
-  lowBudget, count = 5, onProgress = () => {},
+  lowBudget, count = 5, maxCount = 25, onProgress = () => {},
 }) {
+  // The caller picks the count, but a tampered client shouldn't be able to ask
+  // for a thousand — every result costs a fetch and a measurement.
+  count = Math.max(1, Math.min(Math.round(Number(count) || 5), maxCount, 25))
   const svc = resolveService(service, customService)
   const loc = city ? city + ', ' + country : country
 

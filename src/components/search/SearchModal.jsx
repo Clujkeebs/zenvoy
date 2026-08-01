@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Icon from '../../icons/Icon'
 import { COUNTRIES, resolveService, normalizeServiceName } from '../../constants/services'
-import { canMulti, getLeadsPerScan, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
+import { PLANS, canMulti, getLeadCap, canChooseLeadCount, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
 import { generateLeads } from '../../utils/ai'
 import ServicePicker from '../ui/ServicePicker'
 import * as DB from '../../utils/db'
@@ -13,6 +13,11 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade }) {
   const [customSvc, setCustomSvc] = useState('')
   const [country,   setCountry]   = useState(canMulti(user) ? '' : (user.country || 'United Kingdom'))
   const [city,      setCity]      = useState('')
+  const leadCap = getLeadCap(user)
+  const [leadCount, setLeadCount] = useState(() => {
+    const saved = Number(localStorage.getItem('zv_lead_count'))
+    return saved >= 1 && saved <= leadCap ? saved : leadCap
+  })
   const [lowBudget, setLowBudget] = useState(false)
   const [scanning,  setScanning]  = useState(false)
   const [log,       setLog]       = useState([])
@@ -20,6 +25,7 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade }) {
   const [failed,    setFailed]    = useState(false)
   const logRef = useRef(null)
 
+  const plan          = PLANS[user.plan] || PLANS.free
   const planScansLeft = getScansLeft(user)
   const bonusScans    = getBonusScans(user)
   const scansLeft     = planScansLeft + bonusScans
@@ -75,7 +81,8 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade }) {
         city,
         existingNames: existing,
         lowBudget,
-        count: getLeadsPerScan(user),
+        count: leadCount,
+        maxCount: leadCap,
         onProgress: say,
       })
 
@@ -209,6 +216,59 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade }) {
               </div>
             )}
 
+            {canChooseLeadCount(user) ? (
+              <div style={{
+                marginBottom: 14, padding: '12px 14px', background: 'var(--s2)',
+                borderRadius: 9, border: '1.5px solid var(--brd)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 9 }}>
+                  <span className="lbl" style={{ marginBottom: 0 }}>How many leads?</span>
+                  <span style={{ fontFamily: 'var(--fh)', fontWeight: 900, fontSize: 17, color: 'var(--lime)' }}>
+                    {leadCount}
+                  </span>
+                </div>
+
+                <input
+                  type="range" min={1} max={leadCap} step={1} value={leadCount}
+                  onChange={e => {
+                    const v = Number(e.target.value)
+                    setLeadCount(v)
+                    localStorage.setItem('zv_lead_count', String(v))
+                  }}
+                  style={{ width: '100%', accentColor: 'var(--lime)', cursor: 'pointer' }}
+                  aria-label="Leads per scan"
+                />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>
+                  <span>1</span>
+                  <span>{leadCap} max on {plan.name}</span>
+                </div>
+
+                <p style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 8, lineHeight: 1.55 }}>
+                  It costs one scan either way. Fewer leads finish faster and keep
+                  your list focused; more gives you a wider net to sort through.
+                </p>
+              </div>
+            ) : (
+              <div style={{
+                marginBottom: 14, padding: '10px 13px', background: 'var(--s2)',
+                borderRadius: 9, border: '1.5px solid var(--brd)',
+                display: 'flex', alignItems: 'center', gap: 9, fontSize: 12, color: 'var(--txt2)',
+              }}>
+                <I n="target" s={13} c="var(--txt3)" />
+                <span>{leadCap} leads per scan on {plan.name}</span>
+                <button
+                  style={{
+                    marginLeft: 'auto', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    background: 'none', border: 'none', color: 'var(--blue)',
+                  }}
+                  onClick={() => onUpgrade && onUpgrade('Choose how many leads per scan', 'growth')}
+                >
+                  Get more →
+                </button>
+              </div>
+            )}
+
             <div style={{
               display: 'flex', alignItems: 'center', gap: 9, marginBottom: 16, padding: '10px 13px',
               background: 'var(--s2)', borderRadius: 9, border: '1.5px solid var(--brd)', cursor: 'pointer',
@@ -274,7 +334,7 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade }) {
               style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: 15 }}
               onClick={run} disabled={!country || !serviceReady || (!isOwner && scansLeft <= 0)}>
               <I n="search" s={16} />
-              Scan for {getLeadsPerScan(user)} {service.label} leads in {city || country || 'your location'}
+              Scan for {leadCount} {service.label} lead{leadCount === 1 ? '' : 's'} in {city || country || 'your location'}
             </button>
           </div>
         ) : (

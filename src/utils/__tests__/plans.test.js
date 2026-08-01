@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   PLANS, PLAN_ORDER, canAI, canMulti, canScale,
   getScansLimit, getScansLeft, getTotalScansLeft, getLeadsPerScan, isPaidPlan,
+  getLeadCap, canChooseLeadCount, MAX_LEADS_PER_SCAN,
 } from '../../constants/plans'
 import { isOwner, isAdmin, isModerator, getDefaultRole } from '../roles'
 import { resolveService, normalizeServiceName, SERVICES } from '../../constants/services'
@@ -116,5 +117,36 @@ describe('resolveService', () => {
 
   it('collapses whitespace when normalising', () => {
     expect(normalizeServiceName('  Menu   design  ')).toBe('Menu design')
+  })
+})
+
+describe('lead count picker', () => {
+  it('caps the picker at the plan entitlement', () => {
+    expect(getLeadCap({ plan: 'free' })).toBe(5)
+    expect(getLeadCap({ plan: 'growth' })).toBe(8)
+    expect(getLeadCap({ plan: 'scale' })).toBe(15)
+    expect(getLeadCap({ plan: 'enterprise' })).toBe(25)
+  })
+
+  it('gives the owner a usable number rather than the entitlement', () => {
+    // getLeadsPerScan reports 9999 for the owner; a single scan can't fetch and
+    // measure that many, so the picker is bounded.
+    expect(getLeadsPerScan({ role: 'owner' })).toBe(9999)
+    expect(getLeadCap({ role: 'owner' })).toBe(MAX_LEADS_PER_SCAN)
+  })
+
+  it('only offers the picker where the plan leaves room to choose', () => {
+    expect(canChooseLeadCount({ plan: 'free' })).toBe(false)
+    expect(canChooseLeadCount({ plan: 'starter' })).toBe(false)
+    expect(canChooseLeadCount({ plan: 'growth' })).toBe(true)
+    expect(canChooseLeadCount({ plan: 'pro' })).toBe(true)
+    expect(canChooseLeadCount({ role: 'owner' })).toBe(true)
+  })
+
+  it('never returns a cap above what one scan can deliver', () => {
+    for (const plan of PLAN_ORDER) {
+      expect(getLeadCap({ plan })).toBeLessThanOrEqual(MAX_LEADS_PER_SCAN)
+      expect(getLeadCap({ plan })).toBeGreaterThan(0)
+    }
   })
 })
