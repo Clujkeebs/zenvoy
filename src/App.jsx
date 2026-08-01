@@ -249,6 +249,14 @@ export default function App() {
     }
   }, [showToast])
 
+  /** Imported leads are already saved by the import flow — just show them. */
+  const addLeads = useCallback(saved => {
+    if (!saved?.length) return
+    setLeads(prev => [...saved, ...prev])
+    showToast(`Imported ${saved.length} lead${saved.length === 1 ? '' : 's'}.`)
+    setTab("leads")
+  }, [showToast, setTab])
+
   const updLead = useCallback(l => {
     setLeads(prev => prev.map(x => x.id === l.id ? l : x))
     DB.updateLead(l) // fire-and-forget
@@ -439,7 +447,7 @@ export default function App() {
       <main className="app-main">
         <div key={tab} className="fu" style={{ minHeight: "100%", animationDuration: ".18s" }}>
         {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} />}
-        {tab === "leads"        && <LeadsPage user={user} leads={leads} onUpdate={updLead} onDelete={delLead} onSearch={openSearch} onUpgrade={handleUpgrade} onNav={setTab} />}
+        {tab === "leads"        && <LeadsPage user={user} leads={leads} onUpdate={updLead} onDelete={delLead} onImported={addLeads} onSearch={openSearch} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "clients"      && <ClientsPage clients={clients} leads={leads} onAdd={addClient} onUpdate={updClient} onDelete={delClient} onNav={setTab} />}
         {tab === "tools"        && <ToolsPage user={user} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "analytics"    && <AnalyticsPage leads={leads} clients={clients} onNav={setTab} />}

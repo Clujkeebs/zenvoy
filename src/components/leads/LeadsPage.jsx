@@ -2,13 +2,14 @@ import PageHeader from '../ui/PageHeader'
 import { useState, useMemo } from 'react'
 import Icon from '../../icons/Icon'
 import LeadCard from './LeadCard'
+import ImportModal from './ImportModal'
 import { STATUSES, STATUS_COLORS, SERVICES } from '../../constants/services'
 import { canAI } from '../../constants/plans'
 import { recordTouch, closeDeal } from '../../utils/outreach'
 import { csvExport, scoreColor, leadTime, fmtDate } from '../../utils/helpers'
 const I = Icon
 
-export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, onUpgrade, onNav }) {
+export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported, onSearch, onUpgrade, onNav }) {
   const [openId,    setOpenId]    = useState(null);
   const [status,    setStatus]    = useState("all");
   const [sort,      setSort]      = useState("score");
@@ -17,6 +18,7 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
   const [cmpIds,    setCmpIds]    = useState([]);
   const [showCmp,   setShowCmp]   = useState(false);
   const [bulkDate,  setBulkDate]  = useState("");
+  const [showImport,setShowImport]= useState(false);
 
   /* Bulk actions. At 40+ leads, updating status one card at a time is the
      single most tedious thing in the app — this makes a scan's worth of
@@ -50,6 +52,9 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
         </div>
         <div style={{ display:"flex",gap:7,flexWrap:"wrap" }}>
           {cmpIds.length>=2 && <button className="btn btn-blue" onClick={()=>setShowCmp(true)}><I n="layers" s={14}/>Compare ({cmpIds.length})</button>}
+          <button className="btn btn-ghost" onClick={()=>setShowImport(true)} title="Import an existing list — costs no scans">
+            <I n="plus" s={14}/>Import list
+          </button>
           {leads.length>0 && <button className="btn btn-ghost" onClick={()=>csvExport(leads)}><I n="download" s={14}/>Export CSV</button>}
           <button className="btn btn-lime" onClick={onSearch}><I n="search" s={14}/>New Search</button>
         </div>
@@ -136,7 +141,10 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
             <div className="empty-icon"><I n="target" s={32} c="var(--lime)"/></div>
             <h3 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:20 }}>No leads yet</h3>
             <p style={{ color:"var(--txt2)",fontSize:14,maxWidth:320,lineHeight:1.7 }}>Hit <strong style={{color:"var(--txt)"}}>New Search</strong> to discover local businesses that need your service — ranked by opportunity score.</p>
-            <button className="btn btn-lime" style={{ padding:"12px 28px",fontSize:15,marginTop:4 }} onClick={onSearch}><I n="search" s={16}/>Find My First Leads</button>
+            <div style={{ display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:4 }}>
+              <button className="btn btn-lime" style={{ padding:"12px 28px",fontSize:15 }} onClick={onSearch}><I n="search" s={16}/>Find My First Leads</button>
+              <button className="btn btn-ghost" style={{ padding:"12px 22px",fontSize:15 }} onClick={()=>setShowImport(true)}><I n="plus" s={16}/>Import a list</button>
+            </div>
           </div>
         : filtered.length===0
           ? <div style={{ textAlign:"center",padding:"60px 20px",color:"var(--txt2)" }}>
@@ -162,6 +170,15 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
               ))}
             </div>
       }
+
+      {showImport && (
+        <ImportModal
+          user={user}
+          existingLeads={leads}
+          onClose={()=>setShowImport(false)}
+          onImported={onImported}
+        />
+      )}
 
       {/* Compare modal */}
       {showCmp && cmpIds.length>=2 && cmpIds.length<=3 && (()=>{
