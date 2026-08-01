@@ -1,6 +1,7 @@
 import { resolveService } from '../constants/services'
 import { fetchRealBusinesses } from './places'
 import { deriveFindings, scoreFindings } from './evidence'
+import { compareToPeers, benchmarkEvidence } from './benchmark'
 import { supabase } from '../lib/supabase'
 import * as DB from './db'
 
@@ -186,6 +187,11 @@ export async function generateLeads({
       phone: b.phone ?? null,
       website: b.website ?? null,
       osmId: b.osmId ?? null,
+      // Needed to find this business's nearest same-category neighbours.
+      lat: b.lat ?? null,
+      lon: b.lon ?? null,
+      osmTagKey: b.osmTagKey ?? null,
+      osmTagValue: b.osmTagValue ?? null,
 
       /* ── Measured (real) ───────────────────────── */
       ssl: measurement?.https ?? (b.website ? b.ssl : false),
@@ -275,6 +281,10 @@ export function parseJsonArray(text) {
  * ─────────────────────────────────────────────────────────────────────── */
 
 function leadParams(lead, userName) {
+  // A measured local comparison is the most persuasive evidence we have, so it
+  // goes in front of the site findings.
+  const peerEvidence = benchmarkEvidence(compareToPeers(lead.siteMeasurement, lead.benchmark))
+
   return {
     userName,
     leadName: lead.name,
@@ -282,10 +292,13 @@ function leadParams(lead, userName) {
     location: lead.city || lead.country,
     country: lead.country,
     service: lead.serviceCustom || lead.serviceLabel,
-    evidence: (lead.findings || []).slice(0, 6).map(f => ({
-      label: f.label,
-      evidence: f.evidence,
-    })),
+    evidence: [
+      ...peerEvidence,
+      ...(lead.findings || []).slice(0, 6).map(f => ({
+        label: f.label,
+        evidence: f.evidence,
+      })),
+    ].slice(0, 8),
     score: lead.score,
     rate: lead.myMonthlyRate || lead.suggestedMonthlyRate || 800,
     setupCost: lead.setupCost || 200,

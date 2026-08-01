@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import Icon from '../../icons/Icon'
 import { fmtDate } from '../../utils/helpers'
+import { compareToPeers } from '../../utils/benchmark'
 const I = Icon
 
 /**
@@ -18,6 +19,7 @@ const I = Icon
 export default function AuditReport({ lead, user, onClose }) {
   const findings = lead.findings || []
   const m = lead.siteMeasurement
+  const comparison = compareToPeers(m, lead.benchmark)
 
   const grouped = useMemo(() => {
     const high = findings.filter(f => f.weight >= 22)
@@ -171,6 +173,49 @@ export default function AuditReport({ lead, user, onClose }) {
             </div>
           )}
 
+          {/* Local comparison — the section that reframes this as urgent */}
+          {comparison.ready && comparison.headlines.length > 0 && (
+            <section style={{ marginBottom: 26 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase',
+                letterSpacing: '.06em', color: '#111', marginBottom: 10 }}>
+                How you compare locally
+              </h2>
+              <p style={{ fontSize: 12.5, color: '#555', lineHeight: 1.7, marginBottom: 12 }}>
+                We measured the {comparison.sampleSize} nearest businesses of your
+                type within {comparison.radiusKm}km, the same way we measured yours.
+              </p>
+              {comparison.headlines.map((h, i) => (
+                <div key={i} style={{ borderLeft: '3px solid #7c4dcc', paddingLeft: 13, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13.5, color: '#222', lineHeight: 1.65 }}>{h}</div>
+                </div>
+              ))}
+
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, marginTop: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1.5px solid #ddd' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 700 }}>Feature</th>
+                    <th style={{ textAlign: 'center', padding: '6px 0', fontWeight: 700 }}>You</th>
+                    <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 700 }}>Nearby businesses</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparison.stats.map(st => (
+                    <tr key={st.key} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '7px 0' }}>{cap(st.label)}</td>
+                      <td style={{ padding: '7px 0', textAlign: 'center',
+                        color: st.leadHas ? '#2c8c4a' : '#c0392b', fontWeight: 800 }}>
+                        {st.leadHas ? 'Yes' : 'No'}
+                      </td>
+                      <td style={{ padding: '7px 0', textAlign: 'right', color: '#555' }}>
+                        {st.peersWith} of {st.peersTotal} ({st.pct}%)
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+
           {/* Full checklist */}
           <section style={{ marginBottom: 26 }}>
             <h2 style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase',
@@ -207,6 +252,10 @@ export default function AuditReport({ lead, user, onClose }) {
       </div>
     </div>
   )
+}
+
+function cap(s) {
+  return String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1)
 }
 
 function hostOf(url) {

@@ -112,6 +112,20 @@ function tagToBtype(tags) {
   return "Local Business"
 }
 
+/**
+ * The raw OSM tag behind the friendly label.
+ *
+ * The label is lossy — "Café" and "Coffee Shop" both come from `amenity=cafe` —
+ * so finding a business's true peers needs the tag, not the label.
+ */
+function rawTag(tags) {
+  for (const key of TAG_PRIORITY) {
+    const val = tags[key]
+    if (val && val !== "yes") return { key, value: val }
+  }
+  return null
+}
+
 /* ── Bounding-box helpers ─────────────────────────────────────────────── */
 
 /**
@@ -220,8 +234,12 @@ function normalizeElement(el, city, country) {
   const website = normalizeWebsite(tags.website || tags["contact:website"] || tags["url"])
   const phone   = normalizePhone(tags.phone || tags["contact:phone"] || tags["contact:mobile"])
 
+  const tag = rawTag(tags)
+
   return {
     osmId:   (el.type || "n") + el.id,
+    osmTagKey:   tag?.key   ?? null,
+    osmTagValue: tag?.value ?? null,
     name,
     btype:   tagToBtype(tags),
     address: buildAddress(tags, city, country),

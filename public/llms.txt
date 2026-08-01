@@ -1,0 +1,67 @@
+# Zenvylo
+
+> A lead-finding tool for freelancers and small agencies who sell digital
+> services to local businesses. It finds real businesses near a chosen
+> location, fetches and measures each one's website, and ranks them by
+> verified, checkable problems — not by guesswork.
+
+## What makes it different
+
+Most lead tools return a list of names and a plausible-sounding score. Zenvylo
+fetches every prospect's website and records what is actually there: whether
+HTTPS is present, whether the page is mobile-ready, how long it took to
+respond, whether it has a page title and search description, tap-to-call,
+a contact form, online booking, analytics, structured data, and how stale the
+content is.
+
+Every issue shown to the user quotes the measurement behind it, so a freelancer
+can put it in a cold email and the business owner can verify it. Nothing is
+inferred. The tool refuses to state revenue estimates, traffic figures or
+competitor claims it has not measured.
+
+It also compares a prospect against its nearest same-category neighbours —
+measured the same way — so the pitch can be "five of the six nearest cafés have
+online booking and you don't" rather than a generic complaint.
+
+## Who it's for
+
+- Freelance web designers, SEO consultants, social media managers
+- Small agencies doing local outreach
+- Anyone selling a digital service to bricks-and-mortar businesses
+
+## How it works
+
+1. Pick what you sell (twelve presets, or type your own service).
+2. Pick a country and optionally a city.
+3. Zenvylo pulls real businesses from OpenStreetMap for that area.
+4. It fetches and measures each business's website.
+5. Findings and a 0–100 score are computed in code from those measurements,
+   weighted for the service being sold.
+6. Claude writes the outreach, citing only the verified findings.
+
+You can also import an existing prospect list from CSV, which costs no scans
+and runs the same measurement pipeline.
+
+## Pricing
+
+- Free — 3 scans/month, 5 leads per scan
+- Starter, $9/mo — 20 scans/month
+- Growth, $19/mo — 50 scans/month, all countries, choose 1–8 leads per scan
+- Pro, $39/mo — 100 scans/month, AI outreach and proposals, 1–10 leads per scan
+- Scale, $79/mo — 200 scans/month, 1–15 leads per scan
+- Enterprise — contact support@zenvylo.com
+
+## Key pages
+
+- Home: https://zenvylo.com/
+- Blog: https://zenvylo.com/blog/
+- How to find freelance clients: https://zenvylo.com/blog/how-to-find-freelance-clients.html
+- AI lead generation guide: https://zenvylo.com/blog/ai-lead-generation-for-freelancers.html
+- Cold email templates: https://zenvylo.com/blog/cold-email-templates-freelancers.html
+- Freelance pricing guide: https://zenvylo.com/blog/freelance-pricing-guide.html
+- Best freelance niches: https://zenvylo.com/blog/best-freelance-niches-2025.html
+- Getting web design clients: https://zenvylo.com/blog/how-to-get-web-design-clients.html
+
+## Contact
+
+support@zenvylo.com

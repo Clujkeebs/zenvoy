@@ -3,6 +3,7 @@ import Icon from '../../icons/Icon'
 import { STATUS_COLORS, STATUSES } from '../../constants/services'
 import { scoreColor, timeAgo } from '../../utils/helpers'
 import { opportunityLabel } from '../../utils/evidence'
+import { compareToPeers, benchmarkSummary } from '../../utils/benchmark'
 import { recordTouch, undoTouch, outreachSummary, currentStep, nextStep, closeDeal, LOST_REASONS, MAX_STEP } from '../../utils/outreach'
 import AuditReport from './AuditReport'
 import * as DB from '../../utils/db'
@@ -57,6 +58,28 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
   const [closeReason,setCloseReason]= useState(LOST_REASONS[0]);
   const [reBusy, setReBusy] = useState(false);
   const [reErr,  setReErr]  = useState("");
+  const [bmBusy, setBmBusy] = useState(false);
+  const [bmErr,  setBmErr]  = useState("");
+
+  /* How this prospect stacks up against its nearest same-category neighbours.
+     Computed from measurements, so every line survives the owner checking it. */
+  const comparison = compareToPeers(lead.siteMeasurement, lead.benchmark);
+  const canBenchmark = lead.lat != null && lead.lon != null && lead.osmTagKey;
+
+  const runBenchmark = async () => {
+    setBmBusy(true); setBmErr("");
+    try {
+      const benchmark = await DB.localBenchmark({
+        lat: lead.lat, lon: lead.lon,
+        osmTagKey: lead.osmTagKey, osmTagValue: lead.osmTagValue,
+        leadId: lead.id,
+      });
+      onUpdate({ ...lead, benchmark, benchmarkedAt: benchmark?.measuredAt || null });
+    } catch (e) {
+      setBmErr(e.message || "Couldn't compare to nearby businesses.");
+    }
+    setBmBusy(false);
+  };
 
   /* Re-measure the site on demand. A prospect who fixed their SSL last week
      shouldn't still show up as insecure when you pick up the phone. */
@@ -221,6 +244,72 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
             {!lead.website && (
               <div style={{ fontSize:11, color:"var(--txt3)", marginTop:8, fontStyle:"italic" }}>
                 No website on record, so there was nothing to measure — the gap itself is the pitch.
+              </div>
+            )}
+          </div>
+
+          {/* How they compare locally — the line that actually books meetings */}
+          <div style={{ padding:"13px 18px", borderBottom:"1.5px solid var(--brd)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexWrap:"wrap" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                <I n="layers" s={13} c="var(--purple)"/>
+                <span style={{ fontSize:12, fontWeight:700, color:"var(--txt)" }}>
+                  Compared to nearby {lead.btype?.toLowerCase() || "businesses"}
+                </span>
+              </div>
+              {canBenchmark && (
+                <button className="btn btn-ghost" style={{ fontSize:11, padding:"5px 10px" }}
+                  disabled={bmBusy} onClick={runBenchmark}>
+                  <I n="refresh" s={11}/>{bmBusy ? "Checking neighbours…" : comparison.ready ? "Refresh" : "Compare"}
+                </button>
+              )}
+            </div>
+
+            {bmErr && <div style={{ fontSize:11, color:"var(--red)", marginTop:7 }}>{bmErr}</div>}
+
+            {!canBenchmark && (
+              <div style={{ fontSize:11, color:"var(--txt3)", marginTop:6, lineHeight:1.6 }}>
+                We only have coordinates for scanned leads, so imported ones can't be compared yet.
+              </div>
+            )}
+
+            {canBenchmark && !comparison.ready && !bmBusy && (
+              <div style={{ fontSize:11, color:"var(--txt3)", marginTop:6, lineHeight:1.6 }}>
+                {lead.benchmark
+                  ? "Not enough comparable businesses nearby to draw a fair comparison."
+                  : "Measure the nearest businesses of the same type. \u201CFive of the six nearest have HTTPS and you don\u2019t\u201D lands harder than any feature list."}
+              </div>
+            )}
+
+            {comparison.ready && (
+              <div style={{ marginTop:9 }}>
+                {comparison.headlines.length === 0 ? (
+                  <div style={{ fontSize:12, color:"var(--txt2)" }}>
+                    Keeping pace with the {comparison.sampleSize} nearest businesses — no easy angle here.
+                  </div>
+                ) : comparison.headlines.map((h,i)=>(
+                  <div key={i} style={{ display:"flex", gap:8, alignItems:"flex-start", marginBottom:6 }}>
+                    <I n="alert" s={12} c="var(--purple)" style={{ flexShrink:0, marginTop:2 }}/>
+                    <span style={{ fontSize:12, color:"var(--txt2)", lineHeight:1.6 }}>{h}</span>
+                  </div>
+                ))}
+
+                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:9 }}>
+                  {comparison.stats.map(st=>(
+                    <span key={st.key} className="chip"
+                      title={`${st.peersWith} of ${st.peersTotal} nearby have this`}
+                      style={{ fontSize:10,
+                        background: st.leadHas ? "rgba(52,212,122,.08)" : "rgba(167,109,255,.08)",
+                        border: "1px solid " + (st.leadHas ? "rgba(52,212,122,.2)" : "rgba(167,109,255,.22)"),
+                        color: st.leadHas ? "var(--green)" : "var(--purple)" }}>
+                      {st.leadHas ? "\u2713" : "\u2717"} {st.label} · {st.pct}% nearby
+                    </span>
+                  ))}
+                </div>
+
+                <div style={{ fontSize:10, color:"var(--txt3)", marginTop:7 }}>
+                  {comparison.sampleSize} businesses within {comparison.radiusKm}km, measured {timeAgo(lead.benchmarkedAt || lead.benchmark?.measuredAt)}
+                </div>
               </div>
             )}
           </div>

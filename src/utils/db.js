@@ -240,6 +240,17 @@ export async function auditSite(url, leadId) {
   return measurement
 }
 
+/**
+ * Measure the nearest same-category businesses so the pitch can be
+ * comparative. Needs coordinates, which only scanned leads carry.
+ */
+export async function localBenchmark({ lat, lon, osmTagKey, osmTagValue, leadId }) {
+  const { benchmark } = await callFunction('local-benchmark', {
+    lat, lon, osmTagKey, osmTagValue, leadId,
+  })
+  return benchmark
+}
+
 // ─── Affiliate System ─────────────────────────────
 export async function getMyAffiliateRecord() {
   const userId = await getUserId()
@@ -315,7 +326,8 @@ const LEAD_COLS = new Set([
   'competition_score', 'difficulty_rating', 'market_saturation', 'country', 'city',
   'service_id', 'service_label', 'service_custom', 'status', 'saved', 'notes',
   'follow_up_date', 'user_id', 'site_measurement', 'findings', 'audited_at',
-  'osm_id', 'contacted_at', 'won_value', 'outreach_step', 'last_contact_at',
+  'osm_id', 'lat', 'lon', 'benchmark', 'benchmarked_at',
+  'contacted_at', 'won_value', 'outreach_step', 'last_contact_at',
   'outreach_log', 'lost_reason', 'closed_at',
 ])
 
