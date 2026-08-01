@@ -4,7 +4,8 @@ import Icon from '../../icons/Icon'
 import LeadCard from './LeadCard'
 import { STATUSES, STATUS_COLORS, SERVICES } from '../../constants/services'
 import { canAI } from '../../constants/plans'
-import { csvExport, scoreColor, demandColor } from '../../utils/helpers'
+import { recordTouch, closeDeal } from '../../utils/outreach'
+import { csvExport, scoreColor, leadTime, fmtDate } from '../../utils/helpers'
 const I = Icon
 
 export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, onUpgrade, onNav }) {
@@ -15,17 +16,30 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
   const [savedOnly, setSavedOnly] = useState(false);
   const [cmpIds,    setCmpIds]    = useState([]);
   const [showCmp,   setShowCmp]   = useState(false);
+  const [bulkDate,  setBulkDate]  = useState("");
+
+  /* Bulk actions. At 40+ leads, updating status one card at a time is the
+     single most tedious thing in the app — this makes a scan's worth of
+     follow-up admin a couple of clicks. */
+  const selected = leads.filter(l => cmpIds.includes(l.id));
+
+  const bulk = (fn) => {
+    selected.forEach(l => onUpdate({ ...l, ...fn(l) }));
+    setCmpIds([]);
+  };
 
   const filtered = leads
     .filter(l=>status==="all"?true:l.status===status)
     .filter(l=>!savedOnly||l.saved)
     .filter(l=>!q||l.name.toLowerCase().includes(q.toLowerCase())||(l.btype||"").toLowerCase().includes(q.toLowerCase())||(l.city||"").toLowerCase().includes(q.toLowerCase()))
-    .sort((a,b)=>sort==="score"?(b.score-a.score):sort==="value"?((b.myMonthlyRate||b.suggestedMonthlyRate||0)-(a.myMonthlyRate||a.suggestedMonthlyRate||0)):sort==="demand"?((b.demandScore||0)-(a.demandScore||0)):(b.addedAt-a.addedAt));
+    .sort((a,b)=>sort==="score"?(b.score-a.score):sort==="value"?((b.myMonthlyRate||b.suggestedMonthlyRate||0)-(a.myMonthlyRate||a.suggestedMonthlyRate||0)):sort==="evidence"?((b.findings?.length||0)-(a.findings?.length||0)):(leadTime(b)-leadTime(a)));
 
-  const toggleCmp = id => {
-    if(cmpIds.includes(id)) setCmpIds(cmpIds.filter(x=>x!==id));
-    else if(cmpIds.length<3) setCmpIds([...cmpIds,id]);
-  };
+  const toggleCmp = id =>
+    setCmpIds(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
+
+  const allShownSelected = filtered.length>0 && filtered.every(l=>cmpIds.includes(l.id));
+  const toggleAllShown = () =>
+    setCmpIds(allShownSelected ? [] : filtered.map(l=>l.id));
 
   return (
     <div style={{overflowX:"hidden",minWidth:0}}>
@@ -45,13 +59,18 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
         <input className="inp" placeholder="Search leads…" value={q} onChange={e=>setQ(e.target.value)} style={{ flex:"1 1 160px",minWidth:140,fontSize:13 }}/>
         <select className="inp" value={sort} onChange={e=>setSort(e.target.value)} style={{ width:"auto",fontSize:13,padding:"10px 12px" }}>
           <option value="score">Highest Score</option>
-          <option value="demand">Highest Demand</option>
+          <option value="evidence">Most Verified Issues</option>
           <option value="value">Highest Rate</option>
           <option value="date">Newest First</option>
         </select>
         <button className={"btn "+(savedOnly?"btn-lime":"btn-ghost")} onClick={()=>setSavedOnly(!savedOnly)}>
           <I n="save" s={13}/>{savedOnly?"Show All":"Saved Only"}
         </button>
+        {filtered.length>0 && (
+          <button className="btn btn-ghost" onClick={toggleAllShown} style={{ fontSize:12 }}>
+            <I n="check" s={12}/>{allShownSelected?"Deselect all":`Select all (${filtered.length})`}
+          </button>
+        )}
       </div>
 
       <div style={{ display:"flex",gap:4,marginBottom:14,flexWrap:"wrap" }}>
@@ -69,12 +88,46 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
       </div>
 
       {cmpIds.length>0 && (
-        <div style={{ marginBottom:11,padding:"8px 13px",background:"rgba(61,142,248,.06)",border:"1.5px solid rgba(61,142,248,.18)",borderRadius:9,
-          display:"flex",alignItems:"center",gap:9,fontSize:13 }}>
+        <div style={{ marginBottom:11,padding:"10px 13px",background:"rgba(61,142,248,.06)",border:"1.5px solid rgba(61,142,248,.18)",borderRadius:9,
+          display:"flex",alignItems:"center",gap:8,fontSize:13,flexWrap:"wrap" }}>
           <I n="layers" s={13} c="var(--blue)"/>
-          <span style={{ color:"var(--blue)" }}>Comparing {cmpIds.length} lead{cmpIds.length>1?"s":""}.</span>
-          <span style={{ color:"var(--txt3)" }}>Select up to 3.</span>
-          <button style={{ marginLeft:"auto",fontSize:12,color:"var(--red)",cursor:"pointer",background:"none",border:"none" }} onClick={()=>setCmpIds([])}>Clear</button>
+          <span style={{ color:"var(--blue)",fontWeight:700 }}>{cmpIds.length} selected</span>
+
+          <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px" }}
+            title="Log an outreach touch and schedule the next follow-up"
+            onClick={()=>bulk(l=>recordTouch(l))}>
+            <I n="mail" s={11}/>Log outreach
+          </button>
+
+          <select className="inp" style={{ width:"auto",fontSize:12,padding:"6px 9px" }}
+            value="" onChange={e=>{ const v=e.target.value; if(v) bulk(()=>({status:v})); }}>
+            <option value="">Set status…</option>
+            {STATUSES.map(st=><option key={st} value={st}>{st.charAt(0).toUpperCase()+st.slice(1)}</option>)}
+          </select>
+
+          <input type="date" className="inp" value={bulkDate}
+            style={{ width:"auto",fontSize:12,padding:"6px 9px" }}
+            onChange={e=>{ setBulkDate(e.target.value); if(e.target.value) bulk(()=>({followUpDate:e.target.value})); }}
+            title="Set follow-up date on all selected"/>
+
+          <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px",color:"var(--txt3)" }}
+            onClick={()=>bulk(l=>closeDeal(l,{won:false,reason:"No reply"}))}>
+            Mark lost
+          </button>
+
+          {cmpIds.length>=2 && cmpIds.length<=3 && (
+            <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px" }} onClick={()=>setShowCmp(true)}>
+              <I n="layers" s={11}/>Compare
+            </button>
+          )}
+
+          <button className="btn btn-ghost" style={{ fontSize:11,padding:"5px 10px" }}
+            onClick={()=>csvExport(selected)}>
+            <I n="download" s={11}/>Export
+          </button>
+
+          <button style={{ marginLeft:"auto",fontSize:12,color:"var(--red)",cursor:"pointer",background:"none",border:"none" }}
+            onClick={()=>setCmpIds([])}>Clear</button>
         </div>
       )}
 
@@ -111,7 +164,7 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
       }
 
       {/* Compare modal */}
-      {showCmp && cmpIds.length>=2 && (()=>{
+      {showCmp && cmpIds.length>=2 && cmpIds.length<=3 && (()=>{
         const cmpLeads=leads.filter(l=>cmpIds.includes(l.id));
         return (
           <div className="modal-wrap" onClick={()=>setShowCmp(false)}>
@@ -133,17 +186,14 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onSearch, o
                       {l:"Business Type",     f:l=>l.btype},
                       {l:"Location",          f:l=>l.city?l.city+", "+l.country:l.country},
                       {l:"Opp Score",         f:l=><b style={{color:scoreColor(l.score)}}>{l.score}/100</b>},
-                      {l:"Demand",            f:l=><b style={{color:demandColor(l.demandScore||50)}}>{l.demandScore||"?"}/100</b>},
-                      {l:"Competition",       f:l=>l.competitionScore||"?"},
-                      {l:"Difficulty",        f:l=>l.difficultyRating||"?"},
-                      {l:"Market",            f:l=>l.marketSaturation||"?"},
+                      {l:"Verified Issues",   f:l=><b>{(l.findings||[]).length}</b>},
+                      {l:"Top Issue",         f:l=>(l.findings||[])[0]?.label || "none found"},
                       {l:"Monthly Rate",      f:l=>"$"+(l.myMonthlyRate||l.suggestedMonthlyRate||"?")},
                       {l:"Monthly Profit",    f:l=>"$"+Math.max(0,(l.myMonthlyRate||l.suggestedMonthlyRate||0)-(l.toolsCostMonthly||0))},
                       {l:"Setup Cost",        f:l=>"$"+(l.setupCost||"?")},
-                      {l:"Reviews",           f:l=>l.reviews},
-                      {l:"Rating",            f:l=>l.rating?"★"+l.rating:"N/A"},
-                      {l:"PageSpeed",         f:l=>l.speed+"/100"},
-                      {l:"SSL",               f:l=>l.ssl?"✓ Yes":"✗ No"},
+                      {l:"Response Time",     f:l=>l.speed!=null?(l.speed/1000).toFixed(1)+"s":"not measured"},
+                      {l:"HTTPS",             f:l=>l.website?(l.ssl?"✓ Yes":"✗ No"):"no website"},
+                      {l:"Last Verified",     f:l=>l.auditedAt?fmtDate(l.auditedAt):"not audited"},
                     ].map(row=>(
                       <tr key={row.l} style={{ borderTop:"1px solid var(--brd)" }}>
                         <td style={{ padding:"8px 12px",color:"var(--txt3)",fontSize:12 }}>{row.l}</td>

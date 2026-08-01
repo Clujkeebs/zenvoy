@@ -1,6 +1,7 @@
 import PageHeader from '../ui/PageHeader'
 import { useState, useEffect, useRef } from 'react'
 import Icon from '../../icons/Icon'
+import UpgradeModal from '../ui/UpgradeModal'
 import { SEED_GROUPS } from '../../constants/community'
 import { canAI } from '../../constants/plans'
 import { timeAgo } from '../../utils/helpers'

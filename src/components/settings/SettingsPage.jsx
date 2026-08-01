@@ -13,6 +13,7 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
   const [saved, setSaved] = useState(false);
   const [imgUrl, setImgUrl] = useState(user.profileImageUrl || null);
   const [uploading, setUploading] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [referrals, setReferrals] = useState([]);
   const fileRef = useRef(null);
   const refLink = `${window.location.origin}?ref=${user.refCode}`;
@@ -20,14 +21,17 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
 
   useEffect(() => {
     async function load() {
-      const recs = await DB.getReferrals(user.email);
+      const recs = await DB.getReferrals();
       setReferrals(recs || []);
     }
     load();
-  }, [user.email]);
+  }, []);
 
-  const save = () => {
-    const u={...user,name,svc}; DB.saveUser(user.email,u); onUpdate(u); setSaved(true); setTimeout(()=>setSaved(false),2000);
+  const save = async () => {
+    const { error } = await DB.updateOwnProfile({ name, svc });
+    if (error) { alert("Couldn't save: " + error); return; }
+    onUpdate({ ...user, name, svc });
+    setSaved(true); setTimeout(()=>setSaved(false),2000);
   };
 
   const handleImageUpload = async (e) => {
@@ -36,7 +40,7 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
     if (file.size > 2 * 1024 * 1024) { alert("Image must be under 2MB"); return; }
     setUploading(true);
     try {
-      const url = await DB.saveProfileImage(user.email, file);
+      const url = await DB.saveProfileImage(file);
       if (url) {
         setImgUrl(url);
         const u = { ...user, profileImageUrl: url };
@@ -173,9 +177,17 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
           <I n="alert" s={14} c="var(--red)"/>Danger Zone
         </div>
         <div style={{ display:"flex",gap:8 }}>
-          <button className="btn btn-red" onClick={()=>{
-            if(window.confirm("Delete ALL your leads and scan history?")) { DB.saveLeads(user.email,[]); DB.saveScans(user.email,[]); window.location.reload(); }
-          }}><I n="trash" s={14}/>Clear All Data</button>
+          <button className="btn btn-red" disabled={clearing} onClick={async ()=>{
+            if (!window.confirm("Delete ALL your leads and scan history? This cannot be undone.")) return;
+            setClearing(true);
+            const [leadsRes, scansRes] = await Promise.all([DB.deleteAllLeads(), DB.deleteAllScans()]);
+            setClearing(false);
+            if (leadsRes.error || scansRes.error) {
+              alert("Couldn't delete everything: " + (leadsRes.error || scansRes.error));
+              return;
+            }
+            window.location.reload();
+          }}><I n="trash" s={14}/>{clearing ? "Deleting…" : "Clear All Data"}</button>
           <button className="btn btn-red" onClick={onLogout}><I n="logout" s={14}/>Sign Out</button>
         </div>
       </div>

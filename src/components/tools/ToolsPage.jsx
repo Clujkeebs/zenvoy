@@ -2,8 +2,8 @@ import PageHeader from '../ui/PageHeader'
 import { useState } from 'react'
 import Icon from '../../icons/Icon'
 import { canAI, canScale } from '../../constants/plans'
-import { aiCall } from '../../utils/ai'
-import { SERVICES, COUNTRIES } from '../../constants/services'
+import { genInvoice, genObjectionHandler, genNicheIdeas, genOnboardingKit, genRateAdvice } from '../../utils/ai'
+import { SERVICES, COUNTRIES, getService } from '../../constants/services'
 const I = Icon
 
 export default function ToolsPage({ user, onUpgrade, onNav }) {
@@ -17,7 +17,7 @@ export default function ToolsPage({ user, onUpgrade, onNav }) {
   const [copied, setCopied] = useState("");
   const copy = (txt,k) => { navigator.clipboard.writeText(txt); setCopied(k); setTimeout(()=>setCopied(""),2000); };
 
-  const isAI = ["pro","scale"].includes(user?.plan);
+  const isAI = canAI(user);
 
   const lockGate = (fn, feature) => isAI ? fn() : (onUpgrade && onUpgrade(feature, "pro"));
 
@@ -156,7 +156,7 @@ export default function ToolsPage({ user, onUpgrade, onNav }) {
             ))}
             <div style={{ gridColumn:"1/-1" }}><span className="lbl">Additional Notes</span><textarea className="inp" rows={2} placeholder="Payment due within 14 days." value={invoiceData.notes} onChange={e=>setInvoiceData({...invoiceData,notes:e.target.value})} style={{ resize:"vertical",fontSize:13 }}/></div>
           </div>
-          <button className="btn btn-lime" style={{ fontSize:13 }} onClick={()=>lockGate(async()=>{ setInvoiceBusy(true); setInvoiceOut(""); try { setInvoiceOut(await aiCall("Write a professional invoice for:\nFreelancer: "+user.name+"\nClient: "+(invoiceData.client||"Client")+"\nService: "+(invoiceData.service||"Freelance services")+"\nAmount: $"+(invoiceData.amount||"0")+"\nHours: "+(invoiceData.hours||"not specified")+"\nNotes: "+(invoiceData.notes||"none")+"\n\nFormat as professional invoice text:\nINVOICE #[random 4-digit]\nDate: [today]\nDue: [14 days]\nBill To / From / Description / Amount / Total / Payment terms / Thank you note\nUnder 200 words.",600)); } catch(e){setInvoiceOut("Error: "+e.message);} setInvoiceBusy(false); }, "Invoice Writer")}><I n="dollar" s={14}/>Generate Invoice</button>
+          <button className="btn btn-lime" style={{ fontSize:13 }} onClick={()=>lockGate(async()=>{ setInvoiceBusy(true); setInvoiceOut(""); try { setInvoiceOut(await genInvoice({ userName:user.name, client:invoiceData.client, service:invoiceData.service, amount:invoiceData.amount, hours:invoiceData.hours, notes:invoiceData.notes })); } catch(e){setInvoiceOut("Error: "+e.message);} setInvoiceBusy(false); }, "Invoice Writer")}><I n="dollar" s={14}/>Generate Invoice</button>
           <OutBox txt={invoiceOut} busy={invoiceBusy} cKey="inv" color="var(--green)"/>
         </AiSection>
       )}
@@ -165,7 +165,7 @@ export default function ToolsPage({ user, onUpgrade, onNav }) {
         <AiSection title="Sales Objection Handler" icon="shield2" color="var(--blue)" lockedFor={!isAI?"Objection Handler":null}>
           <p style={{ fontSize:13,color:"var(--txt2)",marginBottom:14 }}>Type any objection a prospect gave you. Get 3 confident rebuttals.</p>
           <div style={{ marginBottom:12 }}><span className="lbl">What did they say?</span><textarea className="inp" rows={3} placeholder={`"We already have someone."\n"Too expensive."\n"Need to think about it."`} value={objection} onChange={e=>setObjection(e.target.value)} style={{ resize:"vertical",fontSize:13 }}/></div>
-          <button className="btn btn-blue" style={{ fontSize:13 }} onClick={()=>lockGate(async()=>{ setObjBusy(true); setObjOut(""); try { setObjOut(await aiCall("Sales coach for freelancers selling digital services.\nObjection: \""+objection+"\"\nFreelancer: "+user.name+" ("+( SERVICES.find(s=>s.id===user.svc)?.label||"digital services")+")\n\nWrite 3 rebuttals:\nREBUTTAL 1 — Empathy + Reframe (under 60 words, end with soft question)\nREBUTTAL 2 — Social Proof (under 60 words, end with soft question)\nREBUTTAL 3 — Direct Closer (under 60 words, end with soft question)",700)); } catch(e){setObjOut("Error: "+e.message);} setObjBusy(false); }, "Objection Handler")}><I n="shield2" s={14}/>Get Rebuttals</button>
+          <button className="btn btn-blue" style={{ fontSize:13 }} onClick={()=>lockGate(async()=>{ setObjBusy(true); setObjOut(""); try { setObjOut(await genObjectionHandler({ userName:user.name, objection, service:getService(user.svc)?.label||"digital services" })); } catch(e){setObjOut("Error: "+e.message);} setObjBusy(false); }, "Objection Handler")}><I n="shield2" s={14}/>Get Rebuttals</button>
           <OutBox txt={objOut} busy={objBusy} cKey="obj" color="var(--blue)"/>
         </AiSection>
       )}
@@ -177,7 +177,7 @@ export default function ToolsPage({ user, onUpgrade, onNav }) {
             <div><span className="lbl">Country</span><select className="inp" value={niche.country} onChange={e=>setNiche({...niche,country:e.target.value})} style={{ fontSize:13 }}><option value="">Select country…</option>{COUNTRIES.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
             <div><span className="lbl">Service You Sell</span><select className="inp" value={niche.service} onChange={e=>setNiche({...niche,service:e.target.value})} style={{ fontSize:13 }}>{SERVICES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></div>
           </div>
-          <button className="btn btn-purple" style={{ fontSize:13 }} onClick={()=>lockGate(async()=>{ setNicheBusy(true); setNicheOut(""); try { setNicheOut(await aiCall("Freelance market research consultant.\nCountry: "+(niche.country||"United States")+"\nService: "+SERVICES.find(s=>s.id===niche.service)?.label+"\n\n5 underserved niches with HIGH demand and LOW freelancer competition:\n\n1. [NICHE] — Market size: S/M/L | Avg rate: $X-Y/mo | Why underserved: [1 sentence] | Find them: [source] | Quick win: [1 sentence]\n\n(repeat for 2-5)\n\nBe specific to this country. Under 300 words.",900)); } catch(e){setNicheOut("Error: "+e.message);} setNicheBusy(false); }, "Niche Finder")}><I n="compass" s={14}/>Find Best Niches</button>
+          <button className="btn btn-purple" style={{ fontSize:13 }} onClick={()=>lockGate(async()=>{ setNicheBusy(true); setNicheOut(""); try { setNicheOut(await genNicheIdeas({ country:niche.country||"United States", service:getService(niche.service)?.label||"digital services" })); } catch(e){setNicheOut("Error: "+e.message);} setNicheBusy(false); }, "Niche Finder")}><I n="compass" s={14}/>Find Best Niches</button>
           <OutBox txt={nicheOut} busy={nicheBusy} cKey="niche" color="var(--purple)"/>
         </AiSection>
       )}
@@ -190,7 +190,7 @@ export default function ToolsPage({ user, onUpgrade, onNav }) {
             <div><span className="lbl">Service Starting</span><select className="inp" value={onboard.service} onChange={e=>setOnboard({...onboard,service:e.target.value})} style={{ fontSize:13 }}><option value="">Select service…</option>{SERVICES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></div>
             <div><span className="lbl">Monthly Rate ($)</span><input className="inp" placeholder="e.g. 1200" value={onboard.rate} onChange={e=>setOnboard({...onboard,rate:e.target.value})} style={{ fontSize:13 }}/></div>
           </div>
-          <button className="btn" style={{ fontSize:13,background:"var(--teal)",color:"#0c0e13" }} onClick={()=>lockGate(async()=>{ setOnboardBusy(true); setOnboardOut(""); try { setOnboardOut(await aiCall("Client onboarding kit:\nFreelancer: "+user.name+"\nClient: "+(onboard.client||"New Client")+"\nService: "+SERVICES.find(s=>s.id===onboard.service)?.label+"\nRate: $"+(onboard.rate||"??")+"/mo\n\n1. WELCOME EMAIL (80 words, warm and professional)\n2. ONBOARDING CHECKLIST (6-8 items the client must provide)\n3. MONTH 1 PROMISE (3 bullet deliverables)\n4. COMMUNICATION RULES (response times, reporting)\n\nUnder 280 words.",900)); } catch(e){setOnboardOut("Error: "+e.message);} setOnboardBusy(false); }, "Onboarding Kit")}><I n="package" s={14}/>Generate Kit</button>
+          <button className="btn" style={{ fontSize:13,background:"var(--teal)",color:"#0c0e13" }} onClick={()=>lockGate(async()=>{ setOnboardBusy(true); setOnboardOut(""); try { setOnboardOut(await genOnboardingKit({ userName:user.name, client:onboard.client, service:getService(onboard.service)?.label||"digital services", rate:onboard.rate })); } catch(e){setOnboardOut("Error: "+e.message);} setOnboardBusy(false); }, "Onboarding Kit")}><I n="package" s={14}/>Generate Kit</button>
           <OutBox txt={onboardOut} busy={onboardBusy} cKey="onb" color="var(--teal)"/>
         </AiSection>
       )}
@@ -204,7 +204,7 @@ export default function ToolsPage({ user, onUpgrade, onNav }) {
             <div><span className="lbl">Experience Level</span><select className="inp" value={rateCalc.exp} onChange={e=>setRateCalc({...rateCalc,exp:e.target.value})} style={{ fontSize:13 }}><option value="">Select…</option><option value="beginner">Beginner (0–1 yr)</option><option value="intermediate">Intermediate (1–3 yr)</option><option value="experienced">Experienced (3–5 yr)</option><option value="expert">Expert (5+ yr)</option></select></div>
             <div><span className="lbl">Hrs/Client/Month</span><input className="inp" type="number" placeholder="e.g. 10" value={rateCalc.hours} onChange={e=>setRateCalc({...rateCalc,hours:e.target.value})} style={{ fontSize:13 }}/></div>
           </div>
-          <button className="btn btn-ghost" style={{ fontSize:13,borderColor:"rgba(245,166,35,.4)",color:"var(--amber)" }} onClick={async()=>{ setRateBusy(true); setRateOut(""); try { setRateOut(await aiCall("Freelance pricing expert.\nCountry: "+(rateCalc.country||"United States")+"\nService: "+SERVICES.find(s=>s.id===rateCalc.service)?.label+"\nExperience: "+(rateCalc.exp||"intermediate")+"\nHours/client/mo: "+(rateCalc.hours||"10")+"\n\nMarket rates:\n• Entry: $X/mo\n• Mid: $X/mo\n• Premium: $X/mo\n\nYOUR RATE: $X/mo — WHY: [2 sentences]\nHOURLY: $X/hr\nRATE JUSTIFICATION: [2 sentences to tell clients]\nNEXT LEVEL: How to charge 30% more\n\nUnder 180 words.",700)); } catch(e){setRateOut("Error: "+e.message);} setRateBusy(false); }}><I n="calculator" s={14}/>Calculate My Rate</button>
+          <button className="btn btn-ghost" style={{ fontSize:13,borderColor:"rgba(245,166,35,.4)",color:"var(--amber)" }} onClick={()=>lockGate(async()=>{ setRateBusy(true); setRateOut(""); try { setRateOut(await genRateAdvice({ country:rateCalc.country||"United States", service:getService(rateCalc.service)?.label||"digital services", experience:rateCalc.exp, hours:rateCalc.hours })); } catch(e){setRateOut("Error: "+e.message);} setRateBusy(false); }, "Rate Calculator")}><I n="calculator" s={14}/>Calculate My Rate</button>
           <OutBox txt={rateOut} busy={rateBusy} cKey="rate" color="var(--amber)"/>
         </AiSection>
       )}

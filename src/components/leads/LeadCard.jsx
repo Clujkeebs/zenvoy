@@ -1,7 +1,11 @@
 import { useState, memo } from 'react'
 import Icon from '../../icons/Icon'
 import { STATUS_COLORS, STATUSES } from '../../constants/services'
-import { scoreColor, demandColor } from '../../utils/helpers'
+import { scoreColor, timeAgo } from '../../utils/helpers'
+import { opportunityLabel } from '../../utils/evidence'
+import { recordTouch, undoTouch, outreachSummary, currentStep, nextStep, closeDeal, LOST_REASONS, MAX_STEP } from '../../utils/outreach'
+import AuditReport from './AuditReport'
+import * as DB from '../../utils/db'
 import { genOutreach, genRoadmap, genProposal, genAudit, genPricingAdvice, genScript, genServicePackages, genFollowUpSequence } from '../../utils/ai'
 const I = Icon
 
@@ -40,7 +44,38 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
   const [myRate,       setMyRate]       = useState(String(lead.myMonthlyRate || lead.suggestedMonthlyRate || ""));
   const [copied,       setCopied]       = useState("");
 
+  const findings = lead.findings || [];
+  const opp = opportunityLabel(lead.score, findings.length);
+  const step = currentStep(lead);
+  const next = nextStep(lead);
+  const touch = outreachSummary(lead);
   const sc  = scoreColor(lead.score);
+
+  const [showReport, setShowReport] = useState(false);
+  const [closeMode,  setCloseMode]  = useState(null);   // "won" | "lost"
+  const [closeValue, setCloseValue] = useState(String(lead.myMonthlyRate || lead.suggestedMonthlyRate || ""));
+  const [closeReason,setCloseReason]= useState(LOST_REASONS[0]);
+  const [reBusy, setReBusy] = useState(false);
+  const [reErr,  setReErr]  = useState("");
+
+  /* Re-measure the site on demand. A prospect who fixed their SSL last week
+     shouldn't still show up as insecure when you pick up the phone. */
+  const reAudit = async () => {
+    setReBusy(true); setReErr("");
+    try {
+      const measurement = await DB.auditSite(lead.website, lead.id);
+      const { deriveFindings, scoreFindings } = await import('../../utils/evidence');
+      const all = deriveFindings(lead, measurement);
+      const { score, findings: scored } = scoreFindings(all, lead.serviceId);
+      onUpdate({ ...lead, siteMeasurement: measurement, findings: scored, score,
+                 auditedAt: measurement.measuredAt, ssl: measurement.https ?? lead.ssl,
+                 speed: measurement.responseMs ?? lead.speed,
+                 problems: scored.slice(0,5).map(f=>f.label) });
+    } catch (e) {
+      setReErr(e.message || "Couldn't re-check that site.");
+    }
+    setReBusy(false);
+  };
   const upd = ch => onUpdate({ ...lead, ...ch });
 
   const copy = (txt, key) => { navigator.clipboard.writeText(txt); setCopied(key); setTimeout(()=>setCopied(""),2000); };
@@ -61,8 +96,6 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
 
   const saveRate = () => { const n=parseInt(myRate)||0; upd({myMonthlyRate:n}); };
 
-  const satColor  = { underserved:"var(--green)", competitive:"var(--amber)", saturated:"var(--red)" };
-  const diffColor = { easy:"var(--green)", medium:"var(--amber)", hard:"var(--red)" };
   const myRateNum     = parseInt(myRate)||lead.myMonthlyRate||lead.suggestedMonthlyRate||0;
   const toolsCost     = lead.toolsCostMonthly||0;
   const profit        = myRateNum - toolsCost;
@@ -123,13 +156,19 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
               </div>
             </div>
           </div>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:7 }}>
-            {(lead.problems||[]).map(p=><span key={p} className="chip c-amber" style={{ fontSize:10 }}>{p}</span>)}
-            {lead.marketSaturation && (
-              <span style={{ fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,border:"1.5px solid",
-                color:satColor[lead.marketSaturation],borderColor:satColor[lead.marketSaturation]+"44",
-                background:satColor[lead.marketSaturation]+"11" }}>
-                {lead.marketSaturation==="underserved"?"🟢":lead.marketSaturation==="competitive"?"🟡":"🔴"} {lead.marketSaturation}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:7, alignItems:"center" }}>
+            {findings.slice(0,4).map(f=>(
+              <span key={f.id} className="chip c-amber" style={{ fontSize:10 }} title={f.evidence}>{f.label}</span>
+            ))}
+            {findings.length>4 && (
+              <span className="chip c-gray" style={{ fontSize:10 }}>+{findings.length-4} more</span>
+            )}
+            {findings.length===0 && (
+              <span className="chip c-gray" style={{ fontSize:10 }}>No measurable issues</span>
+            )}
+            {lead.auditedAt && (
+              <span style={{ fontSize:10, color:"var(--txt3)", display:"flex", alignItems:"center", gap:3 }}>
+                <I n="check" s={9} c="var(--green)"/>verified {timeAgo(lead.auditedAt)}
               </span>
             )}
           </div>
@@ -139,19 +178,51 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
       {open && (
         <div className="fi">
           <div className="sep"/>
-          {/* Score grid */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", borderBottom:"1.5px solid var(--brd)" }}>
-            {[
-              { l:"Opp Score",   v:lead.score,                 c:sc,                                                                                    tip:"Overall opportunity quality 0-100" },
-              { l:"Demand",      v:lead.demandScore||"?",       c:demandColor(lead.demandScore||50),                                                      tip:"Market demand for this service" },
-              { l:"Competition", v:lead.competitionScore||"?",  c:(lead.competitionScore||50)>60?"var(--red)":(lead.competitionScore||50)>35?"var(--amber)":"var(--green)", tip:"Lower = fewer competitors" },
-              { l:"Difficulty",  v:lead.difficultyRating||"?", c:diffColor[lead.difficultyRating]||"var(--txt)",                                          tip:"How hard to close this client" },
-            ].map(st=>(
-              <div key={st.l} title={st.tip} style={{ padding:"10px 8px",textAlign:"center",background:"var(--s2)",borderRight:"1.5px solid var(--brd)",cursor:"help" }}>
-                <div style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:16,color:st.c }}>{st.v}</div>
-                <div style={{ fontSize:10,color:"var(--txt3)",marginTop:2 }}>{st.l}</div>
+          {/* Verified evidence — every line here was measured, not guessed */}
+          <div style={{ padding:"14px 18px", borderBottom:"1.5px solid var(--brd)", background:"var(--s2)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:findings.length?11:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                <div style={{ fontFamily:"var(--fh)", fontWeight:900, fontSize:20, color:sc }}>{lead.score}</div>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:sc }}>{opp.label}</div>
+                  <div style={{ fontSize:10, color:"var(--txt3)" }}>
+                    {findings.length
+                      ? `${findings.length} verified issue${findings.length>1?"s":""} for ${lead.serviceCustom||lead.serviceLabel}`
+                      : "Nothing measurable found — qualify manually"}
+                  </div>
+                </div>
+              </div>
+              {lead.website && (
+                <button className="btn btn-ghost" style={{ fontSize:11, padding:"5px 10px" }}
+                  disabled={reBusy} onClick={reAudit}>
+                  <I n="refresh" s={11}/>{reBusy?"Checking…":"Re-check site"}
+                </button>
+              )}
+            </div>
+
+            {reErr && (
+              <div style={{ fontSize:11, color:"var(--red)", marginBottom:8 }}>{reErr}</div>
+            )}
+
+            {findings.map(f=>(
+              <div key={f.id} style={{ display:"flex", gap:9, alignItems:"flex-start", padding:"7px 0", borderTop:"1px solid var(--brd)" }}>
+                <div style={{ width:6, height:6, borderRadius:"50%", marginTop:6, flexShrink:0,
+                  background:f.weight>=22?"var(--red)":f.weight>=12?"var(--amber)":"var(--txt3)" }}/>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"var(--txt)" }}>{f.label}</div>
+                  <div style={{ fontSize:11, color:"var(--txt2)", lineHeight:1.6, marginTop:1 }}>{f.evidence}</div>
+                  {f.fix && (
+                    <div style={{ fontSize:11, color:"var(--lime)", marginTop:3 }}>→ {f.fix}</div>
+                  )}
+                </div>
               </div>
             ))}
+
+            {!lead.website && (
+              <div style={{ fontSize:11, color:"var(--txt3)", marginTop:8, fontStyle:"italic" }}>
+                No website on record, so there was nothing to measure — the gap itself is the pitch.
+              </div>
+            )}
           </div>
 
           {/* Pricing panel */}
@@ -250,6 +321,81 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
             )}
           </div>
 
+          {/* Outreach tracker — the sequence only happens if something remembers it */}
+          {!["won","lost"].includes(lead.status) && (
+            <div style={{ padding:"11px 18px", borderTop:"1.5px solid var(--brd)", background:"var(--s2)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                <div style={{ display:"flex", gap:3 }}>
+                  {Array.from({length:MAX_STEP}).map((_,i)=>(
+                    <div key={i} title={`Touch ${i+1}`} style={{
+                      width:16, height:5, borderRadius:3,
+                      background: i < step ? "var(--lime)" : "var(--s3)" }}/>
+                  ))}
+                </div>
+                <span style={{ fontSize:12, fontWeight:700,
+                  color: touch.tone==="amber" ? "var(--amber)" : touch.tone==="lime" ? "var(--lime)" : "var(--txt2)" }}>
+                  {touch.label}
+                </span>
+                {next && (
+                  <span style={{ fontSize:11, color:"var(--txt3)", flex:1, minWidth:120 }}>{next.hint}</span>
+                )}
+                <div style={{ display:"flex", gap:5, marginLeft:"auto" }}>
+                  {step > 0 && (
+                    <button className="btn btn-ghost" style={{ fontSize:11, padding:"5px 9px" }}
+                      title="Undo the last logged touch"
+                      onClick={()=>{ const patch = undoTouch(lead); if (patch) upd(patch); }}>
+                      <I n="refresh" s={11}/>Undo
+                    </button>
+                  )}
+                  {next && (
+                    <button className="btn btn-lime" style={{ fontSize:11, padding:"5px 11px" }}
+                      onClick={()=>upd(recordTouch(lead,{ kind: next.kind }))}>
+                      <I n="check" s={11}/>Log {next.kind === "call" ? "call" : "email"} sent
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Close the deal — a won deal needs a real number or the analytics lie */}
+          {closeMode && (
+            <div style={{ padding:"13px 18px", borderTop:"1.5px solid var(--brd)",
+              background: closeMode==="won" ? "rgba(52,212,122,.05)" : "rgba(245,66,66,.04)" }}>
+              {closeMode==="won" ? (
+                <div style={{ display:"flex", gap:9, alignItems:"center", flexWrap:"wrap" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:"var(--green)" }}>
+                    What are they actually paying you?
+                  </span>
+                  <input className="inp" type="number" min="0" value={closeValue}
+                    onChange={e=>setCloseValue(e.target.value)}
+                    style={{ width:120, fontSize:13, padding:"7px 10px" }} placeholder="0"/>
+                  <span style={{ fontSize:12, color:"var(--txt3)" }}>/month</span>
+                  <button className="btn btn-lime" style={{ fontSize:12, padding:"7px 13px" }}
+                    onClick={()=>{ upd(closeDeal(lead,{ won:true, value:closeValue })); setCloseMode(null); }}>
+                    Mark won
+                  </button>
+                  <button className="btn btn-ghost" style={{ fontSize:12, padding:"7px 10px" }}
+                    onClick={()=>setCloseMode(null)}>Cancel</button>
+                </div>
+              ) : (
+                <div style={{ display:"flex", gap:9, alignItems:"center", flexWrap:"wrap" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:"var(--txt2)" }}>Why did it not land?</span>
+                  <select className="inp" value={closeReason} onChange={e=>setCloseReason(e.target.value)}
+                    style={{ width:"auto", fontSize:13, padding:"7px 10px" }}>
+                    {LOST_REASONS.map(r=><option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <button className="btn btn-dark" style={{ fontSize:12, padding:"7px 13px" }}
+                    onClick={()=>{ upd(closeDeal(lead,{ won:false, reason:closeReason })); setCloseMode(null); }}>
+                    Mark lost
+                  </button>
+                  <button className="btn btn-ghost" style={{ fontSize:12, padding:"7px 10px" }}
+                    onClick={()=>setCloseMode(null)}>Cancel</button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Actions */}
           <div style={{ padding:"10px 18px 11px",display:"flex",flexWrap:"wrap",gap:5,alignItems:"center",WebkitOverflowScrolling:"touch" }}>
             <select value={lead.status} onChange={e=>upd({status:e.target.value})}
@@ -259,7 +405,28 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
             <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px" }} onClick={()=>upd({saved:!lead.saved})}>
               <I n="save" s={12}/>{lead.saved?"Saved ✓":"Save"}
             </button>
-            {lead.status==="won" && <span style={{ fontSize:11,color:"var(--green)",fontWeight:700,padding:"6px 10px",background:"rgba(52,212,122,.08)",borderRadius:8,border:"1px solid rgba(52,212,122,.2)" }}>🎉 Won! Add to Clients tab</span>}
+            {!["won","lost"].includes(lead.status) && (
+              <>
+                <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px",color:"var(--green)" }}
+                  onClick={()=>setCloseMode("won")}><I n="check" s={12}/>Won</button>
+                <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px",color:"var(--txt3)" }}
+                  onClick={()=>setCloseMode("lost")}><I n="x" s={12}/>Lost</button>
+              </>
+            )}
+            {lead.status==="won" && (
+              <span style={{ fontSize:11,color:"var(--green)",fontWeight:700,padding:"6px 10px",background:"rgba(52,212,122,.08)",borderRadius:8,border:"1px solid rgba(52,212,122,.2)" }}>
+                Won{lead.wonValue?` · $${lead.wonValue.toLocaleString()}/mo`:""}
+              </span>
+            )}
+            {lead.status==="lost" && lead.lostReason && (
+              <span style={{ fontSize:11,color:"var(--txt3)",padding:"6px 10px",background:"var(--s2)",borderRadius:8,border:"1px solid var(--brd)" }}>
+                Lost — {lead.lostReason}
+              </span>
+            )}
+            <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px" }}
+              onClick={()=>setShowReport(true)} title="A clean report you can send to the prospect">
+              <I n="note" s={12}/>Client report
+            </button>
             <button className="btn btn-dark" style={{ fontSize:12,padding:"6px 10px" }} onClick={()=>setNoteOpen(!noteOpen)}>
               <I n="note" s={12}/>Notes
             </button>
@@ -342,7 +509,11 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
             </div>
           )}
 
-          {/* Outreach panel (special because of type toggle) */}
+          {showReport && (
+        <AuditReport lead={lead} user={{ name:userName }} onClose={()=>setShowReport(false)} />
+      )}
+
+      {/* Outreach panel (special because of type toggle) */}
           {showOut && (
             <div className="fi" style={{ margin:"0 18px 13px",border:"1.5px solid rgba(61,142,248,.25)",borderRadius:10,overflow:"hidden" }}>
               <div style={{ background:"rgba(61,142,248,.07)",padding:"8px 13px",display:"flex",alignItems:"center",gap:7,borderBottom:"1.5px solid rgba(61,142,248,.15)" }}>

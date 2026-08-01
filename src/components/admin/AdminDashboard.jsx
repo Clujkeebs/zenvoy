@@ -32,10 +32,10 @@ export default function AdminDashboard({ user, onNav }) {
   const [affForm, setAffForm]   = useState(emptyAff)
   const [affSaving, setAffSaving] = useState(false)
   const [affErr, setAffErr]     = useState("")
-  const [typePicker, setTypePicker] = useState(null)  // { email, userId }
-  const [scanModal, setScanModal]   = useState(null)  // { email, name }
+  const [typePicker, setTypePicker] = useState(null)  // { targetId }
+  const [scanModal, setScanModal]   = useState(null)  // { id, name }
   const [scanAmt, setScanAmt]       = useState("5")
-  const [planModal, setPlanModal]   = useState(null)  // { email, name, plan }
+  const [planModal, setPlanModal]   = useState(null)  // { id, name, plan }
   const [actionBusy, setActionBusy] = useState(false)
   const [userDetail, setUserDetail] = useState(null)  // expanded user
 
@@ -73,43 +73,63 @@ export default function AdminDashboard({ user, onNav }) {
     u.email?.toLowerCase().includes(search.toLowerCase())
   )
 
-  // ── Helpers ────────────────────────────────────────────
-  const setRole = async (email, role) => {
-    setUsers(prev => prev.map(u => u.email === email ? { ...u, role } : u))
-    DB.saveUser(email, { role })
+  // ── Privileged actions ─────────────────────────────────
+  //
+  // Every one of these used to call DB.saveUser(email, …), which ignored the
+  // email and wrote to the *admin's own* row — so banning a user banned you,
+  // and granting scans granted them to yourself. They now name the target by
+  // id and go through the admin-actions edge function, which re-checks the
+  // caller's role server-side and records an audit entry.
+  //
+  // The optimistic update only lands if the server actually accepted.
+
+  const [actionErr, setActionErr] = useState("")
+
+  const run = async (action, payload, optimistic) => {
+    setActionErr("")
+    setActionBusy(true)
+    try {
+      const res = await DB.adminAction(action, payload)
+      if (optimistic) setUsers(prev => prev.map(optimistic))
+      return res
+    } catch (e) {
+      setActionErr(e.message || "Action failed.")
+      return null
+    } finally {
+      setActionBusy(false)
+    }
   }
 
-  const banUser = async (email) => {
-    setUsers(prev => prev.map(u => u.email === email ? { ...u, banned: true, role: "user" } : u))
-    DB.saveUser(email, { banned: true, role: "user" })
-  }
+  const setRole = (targetId, role) =>
+    run("set_role", { targetId, role }, u => u.id === targetId ? { ...u, role } : u)
 
-  const unbanUser = async (email) => {
-    setUsers(prev => prev.map(u => u.email === email ? { ...u, banned: false } : u))
-    DB.saveUser(email, { banned: false })
-  }
+  const banUser = (targetId) =>
+    run("ban", { targetId }, u => u.id === targetId ? { ...u, banned: true, role: "user" } : u)
+
+  const unbanUser = (targetId) =>
+    run("unban", { targetId }, u => u.id === targetId ? { ...u, banned: false } : u)
 
   const grantScans = async () => {
-    const amount = parseInt(scanAmt)
+    const amount = parseInt(scanAmt, 10)
     if (!amount || amount < 1) return
-    setActionBusy(true)
-    const target = users.find(u => u.email === scanModal.email)
-    const newBonus = (target?.bonusScans || 0) + amount
-    setUsers(prev => prev.map(u => u.email === scanModal.email ? { ...u, bonusScans: newBonus } : u))
-    await DB.saveUser(scanModal.email, { bonusScans: newBonus })
-    setScanModal(null); setScanAmt("5"); setActionBusy(false)
+    const targetId = scanModal.id
+    const res = await run("grant_scans", { targetId, amount })
+    if (res) {
+      // Trust the server's number rather than recomputing it locally.
+      setUsers(prev => prev.map(u => u.id === targetId ? { ...u, bonusScans: res.bonusScans } : u))
+      setScanModal(null)
+      setScanAmt("5")
+    }
   }
 
-  const changePlan = async (email, newPlan) => {
-    setUsers(prev => prev.map(u => u.email === email ? { ...u, plan: newPlan } : u))
-    await DB.saveUser(email, { plan: newPlan })
-    setPlanModal(null)
+  const changePlan = async (targetId, newPlan) => {
+    const res = await run("change_plan", { targetId, plan: newPlan },
+      u => u.id === targetId ? { ...u, plan: newPlan, scansUsed: 0 } : u)
+    if (res) setPlanModal(null)
   }
 
-  const resetScans = async (email) => {
-    setUsers(prev => prev.map(u => u.email === email ? { ...u, scansUsed: 0 } : u))
-    DB.saveUser(email, { scansUsed: 0 })
-  }
+  const resetScans = (targetId) =>
+    run("reset_scans", { targetId }, u => u.id === targetId ? { ...u, scansUsed: 0 } : u)
 
   const exportCSV = () => {
     const header = ["Name","Email","Plan","Role","Scans Used","Bonus Scans","Referrals","Joined","Banned"]
@@ -126,66 +146,91 @@ export default function AdminDashboard({ user, onNav }) {
     URL.revokeObjectURL(url)
   }
 
-  const createUserAffiliate = async (email, userId, type) => {
+  const createUserAffiliate = async (targetId, type) => {
     setTypePicker(null)
-    const u = users.find(x => x.email === email)
+    const u = users.find(x => x.id === targetId)
     if (!u) return
-    try {
-      const promoCode = "ZL-" + Math.random().toString(36).substr(2,4).toUpperCase() + "-" + Math.random().toString(36).substr(2,4).toUpperCase()
-      const aff = await DB.createAffiliate({ userId, name: u.name, email, promoCode, commissionRate: type === 'payment' ? 50 : 0, type, status: 'active' })
-      setUsers(prev => prev.map(x => x.email === email ? { ...x, affiliateId: aff.id } : x))
-      setAffiliates(prev => [aff, ...prev])
-    } catch (e) { alert("Error: " + e.message) }
+    const promoCode = "ZL-" + Math.random().toString(36).slice(2, 6).toUpperCase()
+      + "-" + Math.random().toString(36).slice(2, 6).toUpperCase()
+
+    const res = await run("create_affiliate", {
+      targetId, promoCode, type, name: u.name,
+      commissionRate: type === 'payment' ? 50 : 0,
+    })
+    if (res?.affiliate) {
+      setUsers(prev => prev.map(x => x.id === targetId ? { ...x, affiliateId: res.affiliate.id } : x))
+      setAffiliates(prev => [res.affiliate, ...prev])
+    }
   }
 
-  const toggleAffiliate = (email, userId) => {
-    const u = users.find(x => x.email === email)
+  const toggleAffiliate = async (targetId) => {
+    const u = users.find(x => x.id === targetId)
     if (!u) return
     if (u.affiliateId) {
-      setUsers(prev => prev.map(x => x.email === email ? { ...x, affiliateId: null } : x))
-      DB.saveUser(email, { affiliateId: null })
-      setAffiliates(prev => prev.filter(a => a.id !== u.affiliateId))
+      // Pausing keeps the record and its payout history — deleting it would
+      // orphan the conversions attached to it.
+      const res = await run("update_affiliate", { affiliateId: u.affiliateId, status: "paused" })
+      if (res) {
+        setAffiliates(prev => prev.map(a => a.id === u.affiliateId ? { ...a, status: "paused" } : a))
+      }
     } else {
-      setTypePicker({ email, userId })
+      setTypePicker({ targetId })
     }
   }
 
   const saveAffiliate = async () => {
-    if (!affForm.name || !affForm.email || !affForm.promoCode) { setAffErr("Name, email and promo code are required."); return }
+    if (!affForm.name || !affForm.email || !affForm.promoCode) {
+      setAffErr("Name, email and promo code are required.")
+      return
+    }
+    const target = users.find(u => u.email?.toLowerCase() === affForm.email.toLowerCase())
+    if (!target) {
+      setAffErr("No user with that email. Affiliates must have an account first.")
+      return
+    }
+
     setAffSaving(true); setAffErr("")
     try {
-      const newAff = await DB.createAffiliate({
-        ...affForm,
+      const res = await DB.adminAction("create_affiliate", {
+        targetId: target.id,
+        name: affForm.name,
         promoCode: affForm.promoCode.toUpperCase(),
         commissionRate: affForm.type === 'scans' ? 0 : (parseFloat(affForm.commissionRate) || 50),
         type: affForm.type || 'payment',
-        status: 'active',
       })
-      setAffiliates(prev => [newAff, ...prev])
+      setAffiliates(prev => [res.affiliate, ...prev])
       setAffModal(false); setAffForm(emptyAff)
-    } catch (e) { setAffErr(e.message || "Failed to create affiliate.") }
+    } catch (e) {
+      setAffErr(e.message || "Failed to create affiliate.")
+    }
     setAffSaving(false)
   }
 
   const markPaid = async (aff) => {
     if (!window.confirm(`Mark $${Number(aff.pendingPayout).toFixed(2)} as paid to ${aff.name}?`)) return
-    await DB.updateAffiliate(aff.id, { pendingPayout: 0, paidTotal: (aff.paidTotal || 0) + aff.pendingPayout, lastPayoutAt: new Date().toISOString() })
-    setAffiliates(prev => prev.map(a => a.id === aff.id ? { ...a, paidTotal: (a.paidTotal || 0) + a.pendingPayout, pendingPayout: 0, lastPayoutAt: new Date().toISOString() } : a))
+    const res = await run("mark_payout", { affiliateId: aff.id })
+    if (res) {
+      setAffiliates(prev => prev.map(a => a.id === aff.id
+        ? { ...a, paidTotal: (a.paidTotal || 0) + (res.paid || 0), pendingPayout: 0, lastPayoutAt: new Date().toISOString() }
+        : a))
+    }
   }
 
   const toggleAffStatus = async (aff) => {
     const newStatus = aff.status === 'active' ? 'paused' : 'active'
-    await DB.updateAffiliate(aff.id, { status: newStatus })
-    setAffiliates(prev => prev.map(a => a.id === aff.id ? { ...a, status: newStatus } : a))
+    const res = await run("update_affiliate", { affiliateId: aff.id, status: newStatus })
+    if (res) setAffiliates(prev => prev.map(a => a.id === aff.id ? { ...a, status: newStatus } : a))
   }
 
-  const resolveReport = (idx) => {
+  const resolveReport = async (idx) => {
     const report = reports[idx]
-    if (!report) return
-    const updated = [...reports]
-    updated[idx] = { ...updated[idx], status: "resolved", resolvedAt: Date.now() }
-    setReports(updated)
-    if (report.id) DB.resolveReport(report.id)
+    if (!report?.id) return
+    const res = await run("resolve_report", { reportId: report.id, status: "resolved" })
+    if (res) {
+      setReports(prev => prev.map((r, i) => i === idx
+        ? { ...r, status: "resolved", resolvedAt: new Date().toISOString() }
+        : r))
+    }
   }
 
   if (!isAdmin(user)) {
@@ -215,6 +260,23 @@ export default function AdminDashboard({ user, onNav }) {
         onBack={() => onNav("home")}
         onHome={() => onNav("home")}
       />
+
+      {/* Failed privileged action — the server refused, so nothing changed */}
+      {actionErr && (
+        <div style={{
+          marginBottom: 14, padding: "11px 15px", borderRadius: 10,
+          background: "rgba(245,66,66,.08)", border: "1.5px solid rgba(245,66,66,.25)",
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <I n="alert" s={15} c="var(--red)" />
+          <div style={{ flex: 1, fontSize: 13, color: "var(--red)", fontWeight: 600 }}>{actionErr}</div>
+          <button
+            onClick={() => setActionErr("")}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--txt3)", padding: 4 }}>
+            <I n="x" s={13} />
+          </button>
+        </div>
+      )}
 
       {/* Owner crown banner */}
       {ownerView && (
@@ -393,7 +455,7 @@ export default function AdminDashboard({ user, onNav }) {
                           {/* Role picker */}
                           <select
                             value={u.role || "user"}
-                            onChange={e => setRole(u.email, e.target.value)}
+                            onChange={e => setRole(u.id, e.target.value)}
                             style={{ fontSize: 11, background: "var(--s2)", border: "1.5px solid var(--brd)", borderRadius: 6, color: "var(--txt)", padding: "5px 7px", cursor: "pointer" }}>
                             <option value="user">User</option>
                             <option value="moderator">Mod</option>
@@ -403,19 +465,19 @@ export default function AdminDashboard({ user, onNav }) {
 
                           {/* Change plan */}
                           <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px" }}
-                            onClick={() => setPlanModal({ email: u.email, name: u.name, plan: u.plan || 'free' })}>
+                            onClick={() => setPlanModal({ id: u.id, name: u.name, plan: u.plan || 'free' })}>
                             <I n="refresh" s={11} /> Plan
                           </button>
 
                           {/* Grant scans */}
                           <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px" }}
-                            onClick={() => { setScanModal({ email: u.email, name: u.name }); setScanAmt("5") }}>
+                            onClick={() => { setScanModal({ id: u.id, name: u.name }); setScanAmt("5") }}>
                             <I n="zap" s={11} /> Grant Scans
                           </button>
 
                           {/* Reset scans */}
                           <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px" }}
-                            onClick={() => { if (window.confirm(`Reset scan count for ${u.name}?`)) resetScans(u.email) }}>
+                            onClick={() => { if (window.confirm(`Reset scan count for ${u.name}?`)) resetScans(u.id) }}>
                             <I n="refresh" s={11} /> Reset Scans
                           </button>
 
@@ -423,19 +485,19 @@ export default function AdminDashboard({ user, onNav }) {
                           <button
                             className={`btn ${u.affiliateId ? 'btn-red' : 'btn-ghost'}`}
                             style={{ fontSize: 11, padding: "5px 10px" }}
-                            onClick={() => toggleAffiliate(u.email, u.id)}>
+                            onClick={() => toggleAffiliate(u.id)}>
                             {u.affiliateId ? "Remove Affiliate" : "Make Affiliate"}
                           </button>
 
                           {/* Ban / Unban */}
                           {u.banned ? (
                             <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px", color: "var(--green)" }}
-                              onClick={() => unbanUser(u.email)}>
+                              onClick={() => unbanUser(u.id)}>
                               <I n="check" s={11} /> Unban
                             </button>
                           ) : (
                             <button className="btn btn-red" style={{ fontSize: 11, padding: "5px 10px" }}
-                              onClick={() => { if (window.confirm(`Ban ${u.name}?`)) banUser(u.email) }}>
+                              onClick={() => { if (window.confirm(`Ban ${u.name}?`)) banUser(u.id) }}>
                               <I n="x" s={11} /> Ban
                             </button>
                           )}
@@ -670,7 +732,7 @@ export default function AdminDashboard({ user, onNav }) {
               </p>
               {Object.entries(PLANS).map(([key, plan]) => (
                 <button key={key} type="button"
-                  onClick={() => changePlan(planModal.email, key)}
+                  onClick={() => changePlan(planModal.id, key)}
                   style={{
                     padding: "12px 14px", borderRadius: 10, cursor: "pointer", textAlign: "left",
                     background: planModal.plan === key ? "rgba(198,241,53,.07)" : "var(--s2)",
@@ -694,14 +756,14 @@ export default function AdminDashboard({ user, onNav }) {
               <button className="btn btn-ghost" style={{ padding: "4px 6px" }} onClick={() => setTypePicker(null)}><I n="x" s={14} /></button>
             </div>
             <div style={{ padding: "14px 20px 20px", display: "grid", gap: 10 }}>
-              <button type="button" onClick={() => createUserAffiliate(typePicker.email, typePicker.userId, 'payment')}
+              <button type="button" onClick={() => createUserAffiliate(typePicker.targetId, 'payment')}
                 style={{ padding: "14px 16px", borderRadius: 10, cursor: "pointer", textAlign: "left", background: "rgba(198,241,53,.07)", border: "1.5px solid rgba(198,241,53,.25)" }}>
                 <div style={{ fontWeight: 800, fontSize: 14, color: "var(--lime)", marginBottom: 4 }}>💰 Payment Affiliate</div>
                 <div style={{ fontSize: 12, color: "var(--txt2)", lineHeight: 1.5 }}>
                   Earns <strong>50% cash commission</strong> on every subscription — paid via PayPal.
                 </div>
               </button>
-              <button type="button" onClick={() => createUserAffiliate(typePicker.email, typePicker.userId, 'scans')}
+              <button type="button" onClick={() => createUserAffiliate(typePicker.targetId, 'scans')}
                 style={{ padding: "14px 16px", borderRadius: 10, cursor: "pointer", textAlign: "left", background: "rgba(56,189,248,.07)", border: "1.5px solid rgba(56,189,248,.25)" }}>
                 <div style={{ fontWeight: 800, fontSize: 14, color: "var(--blue)", marginBottom: 4 }}>⚡ Scan Affiliate</div>
                 <div style={{ fontSize: 12, color: "var(--txt2)", lineHeight: 1.5 }}>

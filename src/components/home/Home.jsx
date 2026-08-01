@@ -1,20 +1,20 @@
 import Icon from '../../icons/Icon'
 import { PLANS, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
-import { fmtMoney, fmtDate } from '../../utils/helpers'
+import { fmtMoney, leadTime } from '../../utils/helpers'
 import { STATUS_COLORS } from '../../constants/services'
 import { isTrialActive, getTrialDaysLeft } from '../../utils/trial'
+import WorkQueue from './WorkQueue'
+import GoalTracker from './GoalTracker'
 const I = Icon
 
-export default function Home({ user, leads, clients, onSearch, onNav }) {
+export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser }) {
   const saved     = leads.filter(l=>l.saved);
-  const today     = new Date().toISOString().slice(0,10);
-  const followUps = leads.filter(l=>l.followUpDate&&l.followUpDate<=today&&!["won","lost"].includes(l.status));
   const pipeline  = leads.filter(l=>["contacted","interested","proposal sent","negotiating"].includes(l.status));
   const won       = leads.filter(l=>l.status==="won");
   const pipeVal   = pipeline.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
-  const wonVal    = won.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
+  const wonVal    = won.reduce((a,l)=>a+(l.wonValue||l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
   const totalMRR  = leads.reduce((a,l)=>a+(l.status!=="lost"?(l.myMonthlyRate||l.suggestedMonthlyRate||0):0),0);
-  const recent    = [...leads].sort((a,b)=>b.addedAt-a.addedAt).slice(0,6);
+  const recent    = [...leads].sort((a,b)=>leadTime(b)-leadTime(a)).slice(0,6);
   const scansLeft = getScansLeft(user) + getBonusScans(user);
   const onTrial   = isTrialActive(user);
   const plan      = PLANS[user.plan]||PLANS.starter;
@@ -63,6 +63,10 @@ export default function Home({ user, leads, clients, onSearch, onNav }) {
           onClick={()=>onNav("settings")}>Upgrade now →</button>}
       </div>
 
+      <GoalTracker user={user} leads={leads} onUpdate={onUpdateUser} onSearch={onSearch} />
+
+      <WorkQueue leads={leads} onNav={onNav} onSearch={onSearch} />
+
       {/* Stats */}
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10,marginBottom:20 }}>
         {[
@@ -86,25 +90,6 @@ export default function Home({ user, leads, clients, onSearch, onNav }) {
           </div>
         ))}
       </div>
-
-      {/* Follow-ups */}
-      {followUps.length>0 && (
-        <div style={{ marginBottom:16,padding:"13px 17px",background:"rgba(245,166,35,.06)",border:"1.5px solid rgba(245,166,35,.2)",borderRadius:12 }}>
-          <div style={{ fontFamily:"var(--fh)",fontWeight:700,fontSize:14,color:"var(--amber)",marginBottom:9,display:"flex",gap:7,alignItems:"center" }}>
-            <I n="alert" s={14} c="var(--amber)"/>{followUps.length} Follow-up{followUps.length>1?"s":""} Due Today
-          </div>
-          {followUps.map(l=>(
-            <div key={l.id} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 11px",
-              marginBottom:4,background:"rgba(245,166,35,.04)",borderRadius:8,border:"1px solid rgba(245,166,35,.12)" }}>
-              <div>
-                <span style={{ fontWeight:600,fontSize:13 }}>{l.name}</span>
-                <span style={{ fontSize:12,color:"var(--txt2)",marginLeft:8 }}>{l.btype}</span>
-              </div>
-              <span className={"chip "+(STATUS_COLORS[l.status]||"c-gray")} style={{ fontSize:10 }}>{l.status}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Pipeline + Recent */}
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(260px,100%),1fr))",gap:12,marginBottom:12 }}>
