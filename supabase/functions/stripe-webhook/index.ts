@@ -75,14 +75,36 @@ Deno.serve(async (req: Request) => {
 
         const status = String(obj.status || "");
         const entitled = status === "active" || status === "trialing";
+        const periodEnd = subscriptionPeriodEnd(obj);
+
+        // What we already know, so we can tell a real renewal from an
+        // incidental update (card change, address edit, metadata tweak).
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("plan, current_period_end")
+          .eq("id", uid)
+          .maybeSingle();
+
+        const nextPlan = entitled ? plan : "free";
+        const planChanged = existing?.plan !== nextPlan;
+        const periodAdvanced = !!periodEnd
+          && (!existing?.current_period_end
+              || new Date(periodEnd) > new Date(existing.current_period_end));
 
         const updates: Record<string, unknown> = {
-          plan: entitled ? plan : "free",
+          plan: nextPlan,
           stripe_subscription_id: obj.id,
           subscription_status: status,
-          scans_used: 0,
-          scans_reset_at: new Date().toISOString(),
+          current_period_end: periodEnd,
         };
+
+        // Only hand out a fresh allowance when the period genuinely rolled
+        // over or the plan changed. Resetting on every update was a free
+        // top-up for anyone who edited their billing details.
+        if (planChanged || periodAdvanced) {
+          updates.scans_used = 0;
+          updates.scans_reset_at = new Date().toISOString();
+        }
 
         if (status === "trialing" && obj.trial_end) {
           updates.trial_end = new Date(obj.trial_end * 1000).toISOString();
@@ -145,12 +167,35 @@ Deno.serve(async (req: Request) => {
       }
 
       case "checkout.session.completed": {
-        // One-time scan packs — subscriptions are handled by the events above.
-        if (obj.mode !== "payment") break;
-        const uid = obj.metadata?.supabase_uid;
-        const packScans = Number(obj.metadata?.pack_scans || 0);
-        if (!uid || !packScans) break;
-        await supabase.rpc("add_bonus_scans", { p_user_id: uid, p_amount: packScans });
+        const uid = obj.metadata?.supabase_uid
+          ?? (obj.customer ? await resolveUserId(supabase, obj) : null);
+        if (!uid) break;
+
+        if (obj.mode === "payment") {
+          // One-time scan pack.
+          const packScans = Number(obj.metadata?.pack_scans || 0);
+          if (!packScans) break;
+          await supabase.rpc("add_bonus_scans", { p_user_id: uid, p_amount: packScans });
+          break;
+        }
+
+        if (obj.mode === "subscription") {
+          // Belt and braces: if customer.subscription.created isn't subscribed
+          // to on this endpoint, this is the only signal that a new customer
+          // just bought a plan. Safe to run twice — it sets the same state.
+          const plan = String(obj.metadata?.plan || "");
+          if (!VALID_PLANS.has(plan)) break;
+
+          const { data: existing } = await supabase
+            .from("profiles").select("plan").eq("id", uid).maybeSingle();
+          if (existing?.plan === plan) break; // already applied
+
+          await supabase.from("profiles").update({
+            plan,
+            scans_used: 0,
+            scans_reset_at: new Date().toISOString(),
+          }).eq("id", uid);
+        }
         break;
       }
 
@@ -174,6 +219,21 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/**
+ * Billing period end, as an ISO string.
+ *
+ * Stripe moved this field onto subscription items in the 2025 API versions,
+ * so read whichever one this account's version provides.
+ */
+function subscriptionPeriodEnd(obj: any): string | null {
+  const raw = obj?.current_period_end
+    ?? obj?.items?.data?.[0]?.current_period_end
+    ?? null;
+  if (!raw) return null;
+  const ms = Number(raw) * 1000;
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
 /**
