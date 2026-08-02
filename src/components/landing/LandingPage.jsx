@@ -53,70 +53,6 @@ export default function LandingPage({ onSignup, onLogin }) {
     { n:"3", title:"Use AI tools to close the deal",  body:"Generate personalized cold emails, proposals, roadmaps, and scripts in one click. Land the client, add them to your CRM, and watch your MRR grow." },
   ];
 
-  const TESTIMONIALS = [
-    {
-      name: "Marcus T.",
-      role: "Web Design Freelancer",
-      country: "🇺🇸 Texas, USA",
-      avatar: "M",
-      color: "var(--lime)",
-      text: "I landed 3 clients in my first week. The AI email writer alone is worth the subscription — I used to spend hours on cold outreach. Now it takes 2 minutes.",
-      metric: "$4,200/mo in new MRR",
-    },
-    {
-      name: "Priya S.",
-      role: "SEO Consultant",
-      country: "🇮🇳 Bangalore, India",
-      avatar: "P",
-      color: "var(--purple)",
-      text: "What blew me away is the exclusive lead feature. No other tool guarantees you're not competing with their other users. I've closed 5 clients in 6 weeks.",
-      metric: "5 clients in 6 weeks",
-    },
-    {
-      name: "Liam O.",
-      role: "Social Media Agency",
-      country: "🇮🇪 Dublin, Ireland",
-      avatar: "L",
-      color: "var(--blue)",
-      text: "The lead scores are scarily accurate. I prioritize anything above 80 and my close rate on those is nearly 40%. Zenvylo is the backbone of my client acquisition now.",
-      metric: "~40% close rate on 80+ leads",
-    },
-    {
-      name: "Yemi A.",
-      role: "Google Ads Freelancer",
-      country: "🇳🇬 Lagos, Nigeria",
-      avatar: "Y",
-      color: "var(--amber)",
-      text: "Finally a lead gen tool that works outside the US! I'm targeting Lagos businesses and I can actually call these numbers — they're real. Closed my first deal in 9 days.",
-      metric: "First deal in 9 days",
-    },
-    {
-      name: "Sarah K.",
-      role: "Branding Designer",
-      country: "🇦🇺 Melbourne, Australia",
-      avatar: "S",
-      color: "var(--green)",
-      text: "The proposal generator is insane. I used to charge $200 for proposal writing. Now I generate them in 30 seconds, and clients actually compliment how professional they are.",
-      metric: "Proposals in 30 seconds",
-    },
-    {
-      name: "David M.",
-      role: "Local SEO Specialist",
-      country: "🇬🇧 Manchester, UK",
-      avatar: "D",
-      color: "var(--teal)",
-      text: "I've tried every lead gen tool out there. Zenvylo is the first one that actually tells me WHY a business needs my service — that context alone makes my pitches 10x better.",
-      metric: "10× better pitch conversion",
-    },
-  ];
-
-  const SOCIAL_PROOF = [
-    { n: "2,400+", l: "Freelancers" },
-    { n: "35+",    l: "Countries" },
-    { n: "48,000+",l: "Leads found" },
-    { n: "4.8★",   l: "Avg rating" },
-  ];
-
   return (
     <div style={{ background:"var(--bg)",minHeight:"100vh",overflowX:"hidden" }}>
       {/* Skip to content */}
@@ -198,16 +134,6 @@ export default function LandingPage({ onSignup, onLogin }) {
             ✓ Free to start &nbsp;·&nbsp; ✓ No credit card &nbsp;·&nbsp; ✓ 3 scans immediately
           </div>
 
-          {/* Stats bar */}
-          <div className="fu" style={{ marginTop:28,display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,maxWidth:520,margin:"28px auto 0",animationDelay:".25s" }}>
-            {SOCIAL_PROOF.map(({n,l})=>(
-              <div key={l} style={{ textAlign:"center",background:"rgba(255,255,255,.03)",borderRadius:10,padding:"12px 8px",border:"1px solid var(--brd)" }}>
-                <div style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:20,color:"var(--txt)" }}>{n}</div>
-                <div style={{ fontSize:10,color:"var(--txt3)",marginTop:3,lineHeight:1.3 }}>{l}</div>
-              </div>
-            ))}
-          </div>
-
           {/* Mini dashboard mockup */}
           <div className="fu" style={{ marginTop:60,background:"var(--s1)",border:"1.5px solid var(--brd2)",borderRadius:16,padding:"20px",boxShadow:"0 40px 100px rgba(0,0,0,.6)",textAlign:"left",animationDelay:".3s",overflow:"hidden" }}>
             <div style={{ display:"flex",gap:8,marginBottom:16,alignItems:"center" }}>
@@ -241,19 +167,6 @@ export default function LandingPage({ onSignup, onLogin }) {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Logos / "Used by freelancers in" ──────────── */}
-      <section style={{ borderTop:"1px solid var(--brd)",borderBottom:"1px solid var(--brd)",padding:"20px 40px",background:"var(--s1)" }}>
-        <div style={{ maxWidth:900,margin:"0 auto",textAlign:"center" }}>
-          <p style={{ fontSize:12,color:"var(--txt3)",fontWeight:600,letterSpacing:".08em",textTransform:"uppercase",marginBottom:16 }}>Trusted by freelancers in 35+ countries</p>
-          <div style={{ display:"flex",flexWrap:"wrap",justifyContent:"center",gap:"8px 20px",color:"var(--txt3)",fontSize:13,fontWeight:500 }}>
-            {["🇺🇸 USA","🇬🇧 UK","🇨🇦 Canada","🇦🇺 Australia","🇮🇳 India","🇳🇬 Nigeria","🇮🇪 Ireland","🇿🇦 South Africa","🇵🇭 Philippines","🇦🇪 UAE","🇩🇪 Germany","🇳🇿 New Zealand"].map(c=>(
-              <span key={c}>{c}</span>
-            ))}
-            <span style={{ color:"var(--txt3)" }}>& 23 more →</span>
           </div>
         </div>
       </section>
@@ -301,36 +214,6 @@ export default function LandingPage({ onSignup, onLogin }) {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Testimonials ──────────────────────────── */}
-      <section id="land-testimonials" aria-labelledby="testimonials-heading" style={{ background:"var(--bg)",borderBottom:"1px solid var(--brd)" }}>
-        <div className="land-section">
-          <div style={{ textAlign:"center",marginBottom:48 }}>
-            <div style={{ fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".1em",color:"var(--amber)",marginBottom:10 }}>Real Results</div>
-            <h2 id="testimonials-heading" style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(24px,4vw,44px)",letterSpacing:"-.02em",marginBottom:12 }}>Freelancers who actually land clients</h2>
-            <p style={{ color:"var(--txt2)",fontSize:15,maxWidth:480,margin:"0 auto" }}>Not marketing fluff — real outcomes from real Zenvylo users.</p>
-          </div>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(300px,100%),1fr))",gap:14 }}>
-            {TESTIMONIALS.map((t,i)=>(
-              <div key={i} style={{ background:"var(--s1)",border:"1.5px solid var(--brd)",borderRadius:16,padding:"24px",display:"flex",flexDirection:"column",gap:14,transition:"border-color .2s",cursor:"default" }}
-                onMouseEnter={e=>e.currentTarget.style.borderColor=t.color}
-                onMouseLeave={e=>e.currentTarget.style.borderColor="var(--brd)"}>
-                <div style={{ fontSize:13,color:"var(--txt2)",lineHeight:1.75,flex:1 }}>"{t.text}"</div>
-                <div style={{ padding:"8px 14px",background:t.color+"0d",border:"1px solid "+t.color+"25",borderRadius:8,fontSize:12,fontWeight:700,color:t.color }}>
-                  ✓ {t.metric}
-                </div>
-                <div style={{ display:"flex",alignItems:"center",gap:10,borderTop:"1px solid var(--brd)",paddingTop:14 }}>
-                  <div style={{ width:38,height:38,borderRadius:"50%",background:t.color+"22",border:"2px solid "+t.color+"44",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--fh)",fontWeight:900,fontSize:16,color:t.color,flexShrink:0 }}>{t.avatar}</div>
-                  <div>
-                    <div style={{ fontWeight:700,fontSize:13 }}>{t.name}</div>
-                    <div style={{ fontSize:11,color:"var(--txt3)" }}>{t.role} · {t.country}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -435,7 +318,7 @@ export default function LandingPage({ onSignup, onLogin }) {
             <I n="rocket" s={28} c="#0c0e13"/>
           </div>
           <h2 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:"clamp(28px,4vw,44px)",letterSpacing:"-.02em",marginBottom:14 }}>Start finding clients today</h2>
-          <p style={{ color:"var(--txt2)",fontSize:15,lineHeight:1.7,marginBottom:32 }}>3 free scans. No credit card. Cancel anytime. Join 2,400+ freelancers in 35+ countries using Zenvylo.</p>
+          <p style={{ color:"var(--txt2)",fontSize:15,lineHeight:1.7,marginBottom:32 }}>3 free scans. No credit card. Cancel anytime.</p>
           <button className="btn btn-lime" style={{ fontSize:16,padding:"16px 40px",borderRadius:12 }} onClick={()=>handleSignup('bottom_cta')}>
             <I n="target" s={17}/>Get Started Free →
           </button>
