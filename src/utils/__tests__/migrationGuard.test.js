@@ -35,7 +35,7 @@ describe('migration history', () => {
   })
 
   it('lets only service_role read the vault cron secret', () => {
-    const sql = read('supabase/migrations/20261019142000_recheck_secret_from_vault.sql')
+    const sql = read('supabase/migrations/20261019132911_recheck_secret_from_vault.sql')
     const lower = sql.toLowerCase()
     expect(lower).not.toMatch(/drop\s+schema/)
     expect(lower).toContain('private.read_recheck_cron_secret')

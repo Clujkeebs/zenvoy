@@ -8,7 +8,7 @@
 //
 // Deploy: supabase functions deploy recheck-saved
 // Secret: RECHECK_CRON_SECRET if set, otherwise the Vault value
-// recheck_cron_secret (see 20261019142000_recheck_secret_from_vault.sql).
+// recheck_cron_secret (see 20261019132911_recheck_secret_from_vault.sql).
 // The cron job is scheduled by 20261019130555_recheck_saved_prospects.sql.
 // Do not put the secret in git.
 

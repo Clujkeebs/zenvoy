@@ -10,19 +10,15 @@ The live project is `tyhhtbtxdwxjcziwmrpx`. The site is https://zenvylo.app.
 
 `supabase db push` will not see it.
 
-## 2. Apply the pending migration
+## 2. Migrations already on the live database
 
-The re-check job and the desk job are already recorded. Their files were renamed to those versions. Do not apply them again, and do not look for the old names:
+Do not apply these again, and do not look for the old names. `supabase db push` skips a version that is already recorded. Do not `db reset` this project.
 
 - `20261019130555_recheck_saved_prospects.sql` (was `20261019035639_…`)
 - `20261019130603_desk_notices_and_digest.sql` (was `20261019044856_…`)
+- `20261019132911_recheck_secret_from_vault.sql` (was `20261019142000_…`). This lets the service role read the Vault secret named `recheck_cron_secret`.
 
-One file is not recorded yet. Apply it, or run `supabase db push` once. Do not `db reset` this project.
-
-1. `supabase/migrations/20261019142000_recheck_secret_from_vault.sql`
-   Lets the service role read the Vault secret named `recheck_cron_secret`. It does not drop anything. Until this is applied, `recheck-saved` and `daily-digest` still need the `RECHECK_CRON_SECRET` env var.
-
-Files already recorded, including the two above, do not need to be applied again:
+Files already recorded:
 
 - `20260730222009_security_hardening.sql`
 - `20260731173419_freelancer_workflow_features.sql`
@@ -33,6 +29,7 @@ Files already recorded, including the two above, do not need to be applied again
 - `20261019030653_harden_proofs_access.sql`
 - `20261019130555_recheck_saved_prospects.sql`
 - `20261019130603_desk_notices_and_digest.sql`
+- `20261019132911_recheck_secret_from_vault.sql`
 
 Preview branches are still unsafe. No migration creates the `profiles` table.
 
@@ -53,7 +50,7 @@ Required for the desk agent:
 - `ANTHROPIC_API_KEY` — Ask your desk. If it is missing, the desk answers from saved records and does not call a model.
 - `ALLOWED_ORIGINS` — comma-separated browser origins. A trailing slash is ignored. `https://zenvylo.app` and `https://www.zenvylo.app` are always allowed. Example: `https://www.zenvylo.app`
 
-Optional for the scheduled jobs. There is not a second cron secret. If this is unset, the functions read Vault name `recheck_cron_secret` after migration `20261019142000` is applied. If it is set, that value wins.
+Optional for the scheduled jobs. There is not a second cron secret. If this is unset, the functions read Vault name `recheck_cron_secret`. That read is already on the live database as `20261019132911`. If the env var is set, that value wins.
 
 - `RECHECK_CRON_SECRET`
 
@@ -75,7 +72,7 @@ Stripe is already configured. This checklist does not rotate or edit it. Those n
 
 The scheduled jobs already send these Vault values. Do not create a second copy if the names exist.
 
-- `recheck_cron_secret` — the header on both cron calls. After migration `20261019142000` is applied, the functions can read this same row when `RECHECK_CRON_SECRET` is unset.
+- `recheck_cron_secret` — the header on both cron calls. The functions can read this same row when `RECHECK_CRON_SECRET` is unset.
 - `project_url` — value shape `https://PROJECT.supabase.co`
 
 ## 6. Deploy functions
