@@ -17,15 +17,18 @@ version or the next `db push` will run it again as a new migration.
 | `20260801040000_drop_aimediabot_schemas.sql` | **Not applied. Do not apply it.** It `DROP SCHEMA`s `aimediabot` and `analytics`. When it was written, `aimediabot.config` had **6 rows**. On 19 Oct 2026 those schemas were already absent from `pg_namespace` (their create migrations are still recorded), so they were removed outside this file. Leave the file. Do not delete it and do not run it. |
 | `20261019024229_proof_desk_watch.sql` | Applied. The file used to be named `20261019020000_…`. It was renamed to the live version. |
 | `20261019030653_harden_proofs_access.sql` | Applied. The file used to be named `20261019024658_…`. It was renamed to the live version. |
+| `20261019035639_recheck_saved_prospects.sql` | **Not applied.** Schedules a daily call to the `recheck-saved` edge function. It contains no secret. Do not apply it with the rest of the folder. See the file header for the function deploy, `RECHECK_CRON_SECRET`, and the two Vault names the job reads. |
 
 Live version `20260801145756_local_benchmark` is recorded and has **no file**
 here. Do not invent one.
 
 ### Do not `supabase db push` yet
 
-Push applies every file whose version is missing, oldest first. The only
-unrecorded file left is `20260801040000_drop_aimediabot_schemas.sql`. Do not
-push until a human has decided what to do with that drop.
+Push applies every file whose version is missing, oldest first. Two files are
+still unrecorded: `20260801040000_drop_aimediabot_schemas.sql` (do not apply
+it) and `20261019035639_recheck_saved_prospects.sql` (apply on its own, from
+the SQL editor, only after the function and the Vault secrets exist). Do not
+push the folder.
 
 ⚠️ Never rename an applied file to a version that is not already in
 `schema_migrations`. The version prefix is what stops a re-run.

@@ -1,0 +1,8 @@
+# Gateway settings for functions this repo deploys.
+# recheck-saved is called by pg_cron, not by a signed-in browser.
+# The function still rejects any request that does not carry
+# RECHECK_CRON_SECRET. Other functions keep the platform default
+# (a user JWT is required).
+
+[functions.recheck-saved]
+verify_jwt = false

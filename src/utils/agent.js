@@ -8,6 +8,7 @@
 
 import { COUNTRIES, STATUSES } from '../constants/services'
 import { canAI, getLeadCap, getTotalScansLeft } from '../constants/plans'
+import { isTrialActive } from './trial'
 
 const DAY = 86_400_000
 
@@ -509,7 +510,7 @@ const STOP = new Set(['the', 'and', 'for', 'with', 'what', 'who', 'how', 'does',
 export function agentLimits(user) {
   const scansLeft = getTotalScansLeft(user)
   return {
-    model: canAI(user),
+    model: canAI(user) || isTrialActive(user),
     scansLeft,
     leadCap: getLeadCap(user),
     sample: !!user?.sample,

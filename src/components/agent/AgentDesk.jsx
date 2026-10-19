@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import Icon from '../../icons/Icon'
 import { COUNTRIES } from '../../constants/services'
-import { generateLeads, polishDraft, UpgradeRequiredError } from '../../utils/ai'
+import { generateLeads, polishDraft, askDesk, UpgradeRequiredError } from '../../utils/ai'
 import { applyRescan } from '../../utils/watch'
 import {
   agentLimits, parseGoal, businessPrefer, analysedKeep, selectForGoal,
-  buildDigest, answerDesk, proposeAction, draftFollowUp,
+  buildDigest, answerDesk, proposeAction,
 } from '../../utils/agent'
 import * as DB from '../../utils/db'
 const I = Icon
@@ -23,6 +23,7 @@ export default function AgentDesk({ user, leads, onSave, onUpdateLead, onUpgrade
   const [pending, setPending] = useState(null)
   const [draft, setDraft] = useState(null)
   const [polishNote, setPolishNote] = useState('')
+  const [asking, setAsking] = useState(false)
 
   const parsed = useMemo(() => parseGoal(goalText, {
     maxCount: limits.leadCap,
@@ -102,24 +103,63 @@ export default function AgentDesk({ user, leads, onSave, onUpdateLead, onUpgrade
     onSave(found.matches.map(m => m.lead), found.quota)
   }
 
-  const ask = (text) => {
-    const q = text.trim()
-    if (!q) return
+  const showLocal = (q, note) => {
     const action = proposeAction(q, leads)
     if (action?.type === 'draft') {
       setDraft({ ...action.draft, name: action.name, leadId: action.leadId })
       setPolishNote('')
-      setThread(t => [...t, { role: 'you', text: q }, { role: 'desk', text: action.message }])
       setPending(null)
+      setThread(t => [...t, { role: 'desk', text: action.message, note }])
     } else if (action) {
-      setPending(action)
-      setThread(t => [...t, { role: 'you', text: q }, { role: 'desk', text: action.message }])
+      setPending(action.needsConfirm ? action : null)
+      setThread(t => [...t, { role: 'desk', text: action.message, note }])
     } else {
       const answer = answerDesk(q, leads)
-      setThread(t => [...t, { role: 'you', text: q }, { role: 'desk', text: answer.text, citations: answer.citations }])
       setPending(null)
+      setThread(t => [...t, { role: 'desk', text: answer.text, citations: answer.citations, note }])
     }
+  }
+
+  const ask = async (text) => {
+    const q = text.trim()
+    if (!q || asking) return
     setQuestion('')
+    setThread(t => [...t, { role: 'you', text: q }])
+    if (limits.sample || !limits.model) {
+      showLocal(q, limits.sample
+        ? 'Sample desk. This answer is from the saved sample checks, not the model.'
+        : 'The model is on Pro and above. This answer is from the saved checks on your desk.')
+      return
+    }
+    setAsking(true)
+    const history = thread.slice(-6).map(turn => ({ role: turn.role, text: turn.text }))
+    try {
+      const res = await askDesk(q, history)
+      const visible = String(res.text || '').replace(/\[\[cite:[^\]]+\]\]/g, '').replace(/[ \t]{2,}/g, ' ').trim()
+      const draftAction = (res.actions || []).find(action => action.type === 'draft' && action.draft)
+      const confirmAction = (res.actions || []).find(action => action.needsConfirm)
+      if (draftAction) {
+        setDraft({ ...draftAction.draft, name: draftAction.name, leadId: draftAction.leadId })
+        setPolishNote('')
+      }
+      setPending(confirmAction || null)
+      setThread(t => [...t, {
+        role: 'desk',
+        text: visible || res.text,
+        citations: res.citations || [],
+        note: res.refusedSend
+          ? 'Nothing was sent.'
+          : (res.source === 'model'
+            ? 'From the model. Each fact cites a stored check.'
+            : 'From your saved checks.'),
+      }])
+    } catch (e) {
+      if (e instanceof UpgradeRequiredError && onUpgrade) onUpgrade('Ask your desk', 'pro')
+      showLocal(q, e instanceof UpgradeRequiredError
+        ? 'The model is on Pro and above. This answer is from the saved checks on your desk.'
+        : `The model is not available (${e.message}). This answer is from the saved checks.`)
+    }
+    setAsking(false)
   }
 
   const confirm = async () => {
@@ -189,7 +229,7 @@ export default function AgentDesk({ user, leads, onSave, onUpdateLead, onUpgrade
       <p style={{ color: 'var(--txt2)', maxWidth: 640, lineHeight: 1.5 }}>
         It plans a scan, keeps businesses whose measured checks match, and answers from leads you already saved.
         {` ${scansLabel}. `}
-        Asking the desk does not use a scan. A model rewrite of a draft is on Pro (daily AI limit on the server). Nothing is emailed unless you copy it and send it yourself.
+        On Pro, Ask your desk calls the model on the server. The model can only read your leads through tools, and a fact has to cite a stored check. Without a model key, or on a plan below Pro, the same box answers from the records. Asking does not use a scan. Nothing is emailed.
       </p>
 
       <section className="card" style={{ padding: 16, margin: '16px 0' }}>
@@ -239,7 +279,7 @@ export default function AgentDesk({ user, leads, onSave, onUpdateLead, onUpgrade
 
       <section className="card" style={{ padding: 16, marginBottom: 16 }}>
         <h2 style={{ fontSize: 22 }}>This week</h2>
-        <p style={{ color: 'var(--txt2)' }}>{digest.summary}</p>
+        <p style={{ color: 'var(--txt2)' }}>{digest.summary} Re-checks add a line here, and on Today, only when a measurement changes.</p>
         <ul style={{ paddingLeft: 18 }}>
           {digest.events.slice(0, 5).map(e => (
             <li key={e.leadId + e.key + e.at} style={{ margin: '6px 0' }}><strong>{e.name}.</strong> {e.detail}</li>
@@ -252,12 +292,13 @@ export default function AgentDesk({ user, leads, onSave, onUpdateLead, onUpgrade
         <p style={{ fontSize: 13, color: 'var(--txt3)', marginBottom: 8 }}>
           Try “which lead has no booking?” or “draft a follow-up for Harbour Coffee” or “move Harbour Coffee to contacted”.
         </p>
-        <div aria-live="polite" style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
+        <div aria-live="polite" aria-busy={asking} style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
           {thread.length === 0 && <p style={{ color: 'var(--txt2)' }}>Answers cite a saved check. If nothing on the desk matches, it says so.</p>}
           {thread.map((m, i) => (
             <div key={i}>
               <div style={{ fontSize: 12, color: 'var(--txt3)' }}>{m.role === 'you' ? 'You' : 'Desk'}</div>
               <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{m.text}</p>
+              {m.note && <p style={{ fontSize: 12, color: 'var(--txt3)', margin: '4px 0 0' }}>{m.note}</p>}
               {(m.citations || []).filter(c => !m.text.includes(c.text)).map(c => (
                 <p key={c.leadId + c.text} style={{ fontSize: 13, color: 'var(--txt2)', margin: '4px 0 0' }}>
                   {c.name}: {c.text}
@@ -267,15 +308,16 @@ export default function AgentDesk({ user, leads, onSave, onUpdateLead, onUpgrade
           ))}
         </div>
         {pending?.needsConfirm && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <div role="region" aria-label="Confirm a change" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <p id="desk-confirm" style={{ flex: '1 1 100%', margin: 0 }}>{pending.message}</p>
             <button className="btn btn-lime" type="button" onClick={confirm}>Confirm</button>
-            <button className="btn btn-ghost" type="button" onClick={() => setPending(null)}>Cancel</button>
+            <button className="btn btn-ghost" type="button" onClick={() => { setPending(null); setThread(t => [...t, { role: 'desk', text: 'Cancelled. Nothing was changed.' }]) }}>Cancel</button>
           </div>
         )}
         <form onSubmit={e => { e.preventDefault(); ask(question) }} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <label className="sr-only" htmlFor="desk-q">Question</label>
-          <input id="desk-q" className="inp" value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ask about a saved lead" style={{ flex: '1 1 220px' }} />
-          <button className="btn btn-lime" type="submit">Ask</button>
+          <input id="desk-q" className="inp" value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ask about a saved lead" disabled={asking} style={{ flex: '1 1 220px' }} />
+          <button className="btn btn-lime" type="submit" disabled={asking}>{asking ? 'Asking…' : 'Ask'}</button>
         </form>
         {draft && (
           <div style={{ marginTop: 14 }}>
