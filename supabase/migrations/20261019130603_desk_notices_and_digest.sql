@@ -1,16 +1,15 @@
--- NOT APPLIED. Do not run this until you want these tables and the morning job.
+-- APPLIED on the live database as version 20261019130603.
+-- This file used to be named 20261019044856_desk_notices_and_digest.sql.
+-- The rename matches schema_migrations so push does not run it again.
+-- Do not edit the statements below.
 --
 -- Adds an opt-in flag for a daily note to the freelancer, an in-app notice
 -- inbox, a place for proof-page replies, and saved searches. Nothing here
 -- emails a business. The job emails profiles.email only, and only when that
 -- account has digest_opt_in and the mail secret is set.
 --
--- `supabase db push` will apply this file. Its version is not in
--- schema_migrations. Push does not apply the old drop-schema file; that file
--- is in supabase/archive and is not a migration. This file does not drop a
--- schema. The cron job fails each morning until daily-digest is deployed and
--- the Vault secrets below exist. The migration itself does not need those
--- secrets. This file contains no secret.
+-- The drop-schema file is in supabase/archive and is not a migration.
+-- This file does not drop a schema. It contains no secret.
 --
 -- Before the morning job can succeed:
 --   1. supabase functions deploy daily-digest

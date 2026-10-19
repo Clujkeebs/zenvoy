@@ -24,10 +24,25 @@ describe('migration history', () => {
     expect(sql).not.toMatch(/create\s+table/)
   })
 
-  it('does not drop a schema in the pending desk migration', () => {
-    const sql = read('supabase/migrations/20261019044856_desk_notices_and_digest.sql').toLowerCase()
-    expect(sql).not.toMatch(/drop\s+schema/)
-    expect(sql).toContain('digest_opt_in')
-    expect(sql).toContain('daily-digest')
+  it('keeps the applied cron filenames on the live versions', () => {
+    expect(existsSync(new URL('supabase/migrations/20261019035639_recheck_saved_prospects.sql', root))).toBe(false)
+    expect(existsSync(new URL('supabase/migrations/20261019044856_desk_notices_and_digest.sql', root))).toBe(false)
+    const recheck = read('supabase/migrations/20261019130555_recheck_saved_prospects.sql').toLowerCase()
+    const desk = read('supabase/migrations/20261019130603_desk_notices_and_digest.sql').toLowerCase()
+    expect(recheck).toContain('recheck-saved')
+    expect(desk).toContain('digest_opt_in')
+    expect(desk).not.toMatch(/drop\s+schema/)
+  })
+
+  it('lets only service_role read the vault cron secret', () => {
+    const sql = read('supabase/migrations/20261019142000_recheck_secret_from_vault.sql')
+    const lower = sql.toLowerCase()
+    expect(lower).not.toMatch(/drop\s+schema/)
+    expect(lower).toContain('private.read_recheck_cron_secret')
+    expect(lower).toContain('security definer')
+    expect(lower).toContain('security invoker')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION private.read_recheck_cron_secret() TO service_role')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.read_recheck_cron_secret() TO service_role')
+    expect(sql).not.toMatch(/GRANT EXECUTE ON FUNCTION (?:private|public)\.read_recheck_cron_secret\(\) TO (?:anon|authenticated|PUBLIC)/)
   })
 })

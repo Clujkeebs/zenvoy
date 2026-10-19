@@ -1,15 +1,15 @@
--- NOT APPLIED. Do not run this until you want the daily re-check job.
+-- APPLIED on the live database as version 20261019130555.
+-- This file used to be named 20261019035639_recheck_saved_prospects.sql.
+-- The rename matches schema_migrations so push does not run it again.
+-- Do not edit the statements below.
 --
 -- Daily re-check of saved prospect websites. The job calls the recheck-saved
 -- edge function. Results land in leads.watch_log, which the Today desk and
--- the weekly digest already read. A row is written only when the new
+-- the daily digest already read. A row is written only when the new
 -- measurement differs from the stored one. This does not spend a scan credit
 -- and it does not send email.
 --
--- `supabase db push` applies this file, because its version is not recorded.
--- It does not apply the old drop-schema file. That file is in
--- supabase/archive and is not a migration. The job still fails each morning
--- until the function is deployed and the Vault secrets exist.
+-- The drop-schema file is in supabase/archive and is not a migration.
 --
 -- This file contains no secret. Before the job can succeed:
 --   1. supabase functions deploy recheck-saved

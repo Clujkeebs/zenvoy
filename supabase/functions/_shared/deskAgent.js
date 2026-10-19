@@ -471,7 +471,16 @@ export function enforceCitations(text, citations = [], leadNames = []) {
 
 const NOTHING = 'Nothing on this desk matches that. I only use saved leads, their checks, and their watch log.'
 
-export function finishDeskTurn({ message, modelText, citations = [], actions = [], sawSendTool = false, leadNames = [] }) {
+/**
+ * @param {{ message?: string, modelText?: string, citations?: any[], actions?: any[], sawSendTool?: boolean, leadNames?: string[] }} turn
+ */
+export function finishDeskTurn(turn) {
+  const message = turn.message
+  const modelText = turn.modelText
+  const citations = turn.citations || []
+  const actions = turn.actions || []
+  const sawSendTool = turn.sawSendTool || false
+  const leadNames = turn.leadNames || []
   if (wantsSend(message) || sawSendTool) {
     return {
       text: 'I will not send email. Ask me to draft it, then copy it yourself.',

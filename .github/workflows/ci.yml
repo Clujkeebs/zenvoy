@@ -33,3 +33,10 @@ jobs:
           # secret belongs in a VITE_ variable.
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder-anon-key
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Deno check
+        run: npm run deno:check

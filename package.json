@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "smoke": "node scripts/smoke-live.mjs",
-    "check": "npm run lint && npm run test && npm run build"
+    "deno:check": "node scripts/check-deno.mjs",
+    "check": "npm run lint && npm run test && npm run build && npm run deno:check"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",
