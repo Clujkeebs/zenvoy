@@ -3,6 +3,7 @@ import Icon from '../../icons/Icon'
 import { COUNTRIES, resolveService, normalizeServiceName } from '../../constants/services'
 import { PLANS, canMulti, getLeadCap, canChooseLeadCount, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
 import { generateLeads } from '../../utils/ai'
+import { loadSavedSearches, rememberSearch, forgetSearch } from '../../utils/savedSearches'
 import ServicePicker from '../ui/ServicePicker'
 import * as DB from '../../utils/db'
 import Analytics from '../../utils/analytics'
@@ -23,6 +24,8 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade, initialC
   const [log,       setLog]       = useState([])
   const [err,       setErr]       = useState('')
   const [failed,    setFailed]    = useState(false)
+  const [saved,     setSaved]     = useState(() => loadSavedSearches())
+  const [saveNote,  setSaveNote]  = useState('')
   const logRef = useRef(null)
 
   const plan          = PLANS[user.plan] || PLANS.free
@@ -37,6 +40,79 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade, initialC
   const serviceReady = !!svc || normalizeServiceName(customSvc).length >= 2
 
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = 9999 }, [log])
+
+  useEffect(() => {
+    if (user.sample) return undefined
+    let gone = false
+    DB.listSavedSearches().then(rows => {
+      if (gone || !rows.length) return
+      setSaved(prev => {
+        const remote = rows.map(row => ({
+          id: row.id,
+          label: row.label,
+          country: row.country,
+          city: row.city || '',
+          serviceId: row.serviceId || '',
+          serviceCustom: row.serviceCustom || '',
+          leadCount: row.leadCount,
+          savedAt: row.createdAt,
+        }))
+        const seen = new Set()
+        return [...remote, ...prev].filter(item => {
+          const key = `${item.label}|${item.serviceId}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        }).slice(0, 12)
+      })
+    })
+    return () => { gone = true }
+  }, [user.sample])
+
+  const applySaved = (row) => {
+    if (!multiAllowed && row.country && row.country !== country) {
+      setErr(`That search is in ${row.country}. This plan scans ${country}.`)
+      return
+    }
+    if (row.country) setCountry(row.country)
+    setCity(row.city || '')
+    if (row.serviceId) setSvc(row.serviceId)
+    setCustomSvc(row.serviceCustom || '')
+    if (row.leadCount) setLeadCount(Math.min(leadCap, Number(row.leadCount) || leadCap))
+    setErr('')
+    setSaveNote('Filled in. Running it uses 1 scan. Press the scan button when you want it.')
+  }
+
+  const saveThis = async () => {
+    if (!country || !serviceReady) return
+    const label = `${service.label} in ${city || country}`
+    const entry = {
+      label,
+      country,
+      city,
+      serviceId: svc,
+      serviceCustom: customSvc,
+      leadCount,
+    }
+    const nextLocal = rememberSearch(entry)
+    setSaved(prev => {
+      const seen = new Set()
+      return [...nextLocal, ...prev].filter(item => {
+        const key = `${item.label}|${item.serviceId}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      }).slice(0, 12)
+    })
+    if (user.sample) {
+      setSaveNote('Saved in this browser. Running it uses 1 scan.')
+      return
+    }
+    const remote = await DB.insertSavedSearch(entry)
+    setSaveNote(remote.error === 'browser-only'
+      ? 'Saved in this browser. The account copy is not on the server yet.'
+      : remote.error || 'Saved on this account. Running it uses 1 scan.')
+  }
 
   const say = msg => setLog(p => [...p, msg])
 
@@ -155,7 +231,7 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade, initialC
             )}
           </div>
           {!scanning && (
-            <button className="btn btn-ghost" style={{ padding: '6px 8px' }} onClick={onClose}>
+            <button type="button" className="btn btn-ghost" style={{ padding: '6px 8px' }} onClick={onClose} aria-label="Close scan">
               <I n="x" s={16} />
             </button>
           )}
@@ -181,21 +257,21 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade, initialC
               gap: 13, marginBottom: 14,
             }}>
               <div>
-                <span className="lbl">
+                <label className="lbl" htmlFor="scan-country">
                   Country {!multiAllowed && <span style={{ color: 'var(--txt3)' }}>(locked to your country)</span>}
-                </span>
+                </label>
                 {multiAllowed ? (
-                  <select className="inp" value={country} onChange={e => { setCountry(e.target.value); setCity('') }}>
+                  <select id="scan-country" className="inp" value={country} onChange={e => { setCountry(e.target.value); setCity('') }}>
                     <option value="">Select country…</option>
                     {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 ) : (
-                  <div className="inp" style={{ opacity: .7, cursor: 'not-allowed' }}>{user.country}</div>
+                  <input id="scan-country" className="inp" value={user.country || ''} disabled readOnly aria-readonly="true" />
                 )}
               </div>
               <div>
-                <span className="lbl">City / State (optional)</span>
-                <input className="inp" placeholder={country ? 'e.g. Austin, TX' : 'Select country first'}
+                <label className="lbl" htmlFor="scan-city">City / State (optional)</label>
+                <input id="scan-city" className="inp" placeholder={country ? 'e.g. Austin, TX' : 'Select country first'}
                   value={city} onChange={e => setCity(e.target.value)} disabled={!country} />
               </div>
             </div>
@@ -273,10 +349,11 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade, initialC
               </div>
             )}
 
-            <div style={{
+            <button type="button" aria-pressed={lowBudget} onClick={() => setLowBudget(!lowBudget)} style={{
               display: 'flex', alignItems: 'center', gap: 9, marginBottom: 16, padding: '10px 13px',
               background: 'var(--s2)', borderRadius: 9, border: '1.5px solid var(--brd)', cursor: 'pointer',
-            }} onClick={() => setLowBudget(!lowBudget)}>
+              width: '100%', textAlign: 'left', color: 'inherit', font: 'inherit',
+            }}>
               <div style={{
                 width: 18, height: 18, borderRadius: 5,
                 border: '2px solid ' + (lowBudget ? 'var(--lime)' : 'var(--brd2)'),
@@ -288,7 +365,7 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade, initialC
               <span style={{ fontSize: 13, color: 'var(--txt2)' }}>
                 Low Budget Mode — only suggest setups under $500
               </span>
-            </div>
+            </button>
 
             <div style={{
               marginBottom: 14, padding: '11px 14px', background: 'rgba(198,241,53,.05)',
@@ -333,6 +410,38 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade, initialC
                 <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 600 }}>{err}</div>
               </div>
             )}
+
+            {saved.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div className="lbl">Saved searches</div>
+                <p style={{ fontSize: 12, color: 'var(--txt3)', margin: '4px 0 8px' }}>
+                  Choosing one fills this form. Running it uses 1 scan.
+                </p>
+                <ul style={{ listStyle: 'none', display: 'grid', gap: 6 }}>
+                  {saved.map(row => (
+                    <li key={row.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button type="button" className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => applySaved(row)}>
+                        Use this search
+                      </button>
+                      <span style={{ fontSize: 13, flex: 1 }}>{row.label}</span>
+                      <button type="button" className="btn btn-ghost" style={{ fontSize: 12 }} aria-label={`Forget ${row.label}`} onClick={() => {
+                        forgetSearch(row.id)
+                        setSaved(prev => prev.filter(item => item.id !== row.id))
+                        if (!user.sample) DB.deleteSavedSearch(row.id)
+                      }}>
+                        Forget
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button type="button" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', marginBottom: 8 }}
+              onClick={saveThis} disabled={!country || !serviceReady}>
+              Save this search
+            </button>
+            {saveNote && <p role="status" style={{ fontSize: 12, color: 'var(--txt2)', marginBottom: 10 }}>{saveNote}</p>}
 
             <button className="btn btn-lime"
               style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: 15 }}

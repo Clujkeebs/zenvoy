@@ -72,4 +72,15 @@ describe('proof documents', () => {
     expect(decodeProof('not-a-proof')).toBeNull()
     expect(decodeProof('')).toBeNull()
   })
+
+  it('adds an owner id only when one is passed, and that changes the hash', async () => {
+    const plain = buildProofDocument(lead, 'Alex')
+    const owned = buildProofDocument(lead, 'Alex', { ownerId: '11111111-1111-4111-8111-111111111111' })
+    expect(plain.ownerId).toBeUndefined()
+    expect(owned.ownerId).toBe('11111111-1111-4111-8111-111111111111')
+    expect(owned.measurement.truncated).toBe(false)
+    const a = await signProof(plain)
+    const b = await signProof(owned)
+    expect(a.hash).not.toBe(b.hash)
+  })
 })

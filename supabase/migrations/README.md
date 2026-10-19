@@ -14,21 +14,36 @@ version or the next `db push` will run it again as a new migration.
 | `20260731173419_freelancer_workflow_features.sql` | Applied |
 | `20260801023428_track_billing_period.sql` | Applied |
 | `20260801030250_lock_down_function_execute_grants.sql` | Applied. The file used to be named `20260801041500_…`. It was renamed to the live version so it is not applied a second time. |
-| `20260801040000_drop_aimediabot_schemas.sql` | **Not applied. Do not apply it.** It `DROP SCHEMA`s `aimediabot` and `analytics`. When it was written, `aimediabot.config` had **6 rows**. On 19 Oct 2026 those schemas were already absent from `pg_namespace` (their create migrations are still recorded), so they were removed outside this file. Leave the file. Do not delete it and do not run it. |
+| `20260801145756_local_benchmark.sql` | Already recorded. The file is comments only. The original SQL was not saved, so this file does not invent tables. Push skips it because the version is already in `schema_migrations`. |
 | `20261019024229_proof_desk_watch.sql` | Applied. The file used to be named `20261019020000_…`. It was renamed to the live version. |
 | `20261019030653_harden_proofs_access.sql` | Applied. The file used to be named `20261019024658_…`. It was renamed to the live version. |
-| `20261019035639_recheck_saved_prospects.sql` | **Not applied.** Schedules a daily call to the `recheck-saved` edge function. It contains no secret. Do not apply it with the rest of the folder. See the file header for the function deploy, `RECHECK_CRON_SECRET`, and the two Vault names the job reads. |
+| `20261019035639_recheck_saved_prospects.sql` | **Not applied.** Schedules a daily call to `recheck-saved`. No secret in the file. |
+| `20261019044856_desk_notices_and_digest.sql` | **Not applied.** Adds the digest opt-in, notices, proof-page replies, saved searches, and a morning job that calls `daily-digest`. No secret in the file. |
 
-Live version `20260801145756_local_benchmark` is recorded and has **no file**
-here. Do not invent one.
+`20260801040000_drop_aimediabot_schemas.sql` is **not in this folder**. It was
+never applied. The `aimediabot` and `analytics` schemas were already gone from
+`pg_namespace` on 19 Oct 2026, and `aimediabot.config` had 6 rows when the
+file was written. The statements are kept in `supabase/archive/`. Do not move
+that file back here. `supabase db push` does not read the archive, so it
+cannot run that drop.
 
-### Do not `supabase db push` yet
+### What `supabase db push` does now
 
-Push applies every file whose version is missing, oldest first. Two files are
-still unrecorded: `20260801040000_drop_aimediabot_schemas.sql` (do not apply
-it) and `20261019035639_recheck_saved_prospects.sql` (apply on its own, from
-the SQL editor, only after the function and the Vault secrets exist). Do not
-push the folder.
+Push applies every file in this directory whose version is missing, oldest
+first, and skips versions already recorded. The drop file is no longer one of
+those. The placeholder `20260801145756_local_benchmark.sql` matches a version
+that is already recorded, so push does not run it.
+
+Two files are still unrecorded, and push **will apply both**:
+
+1. `20261019035639_recheck_saved_prospects.sql` — schedules `recheck-saved` at 06:15 UTC.
+2. `20261019044856_desk_notices_and_digest.sql` — adds the tables above and schedules `daily-digest` at 07:30 UTC.
+
+Neither file drops a schema. Both jobs call a function with a header read from
+Vault (`project_url` and `recheck_cron_secret`). Until those secrets exist and
+the functions are deployed, the jobs error each morning. The migration
+statements themselves do not need the secrets. Do not apply them unless you
+want those jobs. Do not `db reset --linked` against production.
 
 ⚠️ Never rename an applied file to a version that is not already in
 `schema_migrations`. The version prefix is what stops a re-run.
@@ -49,7 +64,8 @@ select count(*) from supabase_migrations.schema_migrations
 
 So the earliest recorded migration (`20260322181250_add_missing_tables`) opens
 with `REFERENCES profiles(id)` against a table that would not exist on a fresh
-branch.
+branch. The comment-only `local_benchmark` file does not recreate whatever
+that version originally built.
 
 ### Fixing it
 

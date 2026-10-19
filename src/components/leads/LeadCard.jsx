@@ -13,7 +13,7 @@ import * as DB from '../../utils/db'
 import { genOutreach, genRoadmap, genProposal, genAudit, genPricingAdvice, genScript, genServicePackages, genFollowUpSequence } from '../../utils/ai'
 const I = Icon
 
-const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, userPlan, open, onToggle, onUpgrade }) {
+const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, userPlan, ownerId, open, onToggle, onUpgrade }) {
   const userCanAI   = ["pro","scale"].includes(userPlan);
   const userIsScale = userPlan === "scale";
 
@@ -98,7 +98,7 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
   };
   const shareProof = async () => {
     try {
-      const { url, code } = await proofLink(lead, userName, window.location.origin || SITE_ORIGIN);
+      const { url, code } = await proofLink(lead, userName, window.location.origin || SITE_ORIGIN, { ownerId });
       await navigator.clipboard.writeText(url);
       DB.saveProof(code, lead.name, { name: lead.name });
       setCopied("proof");

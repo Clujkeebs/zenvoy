@@ -1,4 +1,4 @@
--- NOT APPLIED. Do not run this file.
+-- NOT APPLIED. Do not run this until you want the daily re-check job.
 --
 -- Daily re-check of saved prospect websites. The job calls the recheck-saved
 -- edge function. Results land in leads.watch_log, which the Today desk and
@@ -6,9 +6,10 @@
 -- measurement differs from the stored one. This does not spend a scan credit
 -- and it does not send email.
 --
--- Do not apply this with `supabase db push`. That command also runs
--- 20260801040000_drop_aimediabot_schemas.sql, which is still unrecorded.
--- Apply this file on its own, from the SQL editor, after the steps below.
+-- `supabase db push` applies this file, because its version is not recorded.
+-- It does not apply the old drop-schema file. That file is in
+-- supabase/archive and is not a migration. The job still fails each morning
+-- until the function is deployed and the Vault secrets exist.
 --
 -- This file contains no secret. Before the job can succeed:
 --   1. supabase functions deploy recheck-saved

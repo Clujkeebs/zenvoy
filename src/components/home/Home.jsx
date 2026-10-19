@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Icon from '../../icons/Icon'
 import { PLANS, getScansLeft, getBonusScans } from '../../constants/plans'
 import { timeAgo } from '../../utils/helpers'
@@ -6,13 +6,14 @@ import { buildDesk } from '../../utils/desk'
 import { nextActions, buildDigest } from '../../utils/agent'
 import { applyRescan, watchableLeads } from '../../utils/watch'
 import { proofLink } from '../../utils/proof'
+import { localNotices, seenNoticeIds, dismissNotice } from '../../utils/notices'
 import { SITE_ORIGIN } from '../../constants/site'
 import * as DB from '../../utils/db'
 import WorkQueue from './WorkQueue'
 import GoalTracker from './GoalTracker'
 const I = Icon
 
-export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser, onUpdateLead }) {
+export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser, onUpdateLead, onAddClient }) {
   const desk = buildDesk(leads)
   const actions = nextActions(leads)
   const digest = buildDigest(leads)
@@ -21,6 +22,41 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const [copied, setCopied] = useState('')
+  const [hidden, setHidden] = useState(() => seenNoticeIds())
+  const [serverNotices, setServerNotices] = useState([])
+
+  useEffect(() => {
+    if (user.sample) return undefined
+    let gone = false
+    DB.listDeskNotices().then(rows => { if (!gone) setServerNotices(rows) })
+    return () => { gone = true }
+  }, [user.sample])
+
+  const notices = [
+    ...serverNotices.filter(item => !item.readAt),
+    ...localNotices(leads).filter(item => !hidden.has(item.id)),
+  ].slice(0, 8)
+
+  const hideNotice = (item) => {
+    if (item.server) {
+      DB.markNoticeRead(item.id)
+      setServerNotices(prev => prev.filter(row => row.id !== item.id))
+      return
+    }
+    setHidden(dismissNotice(item.id))
+  }
+
+  const saveInterest = (item) => {
+    onAddClient?.({
+      name: item.businessName || 'Audit reply',
+      status: 'prospect',
+      notes: item.body || '',
+      btype: '',
+      phone: '',
+      website: '',
+      monthly: '',
+    })
+  }
 
   const recheck = async () => {
     if (user.sample) {
@@ -53,7 +89,9 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
 
   const copyProof = async (lead) => {
     try {
-      const { url } = await proofLink(lead, user.name, window.location.origin || SITE_ORIGIN)
+      const { url } = await proofLink(lead, user.name, window.location.origin || SITE_ORIGIN, {
+        ownerId: user.sample ? undefined : user.id,
+      })
       await navigator.clipboard.writeText(url)
       if (!user.sample) DB.saveProof(lead.id, lead.name, { url })
       setCopied(lead.id)
@@ -91,6 +129,33 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
       </div>
 
       {note && <p style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>{note}</p>}
+
+      {notices.length > 0 && (
+        <section className="card" style={{ padding: 16, marginBottom: 14 }} aria-label="Notices">
+          <h2 style={{ fontSize: 26 }}>For you today</h2>
+          <p style={{ color: 'var(--txt3)', fontSize: 13, marginTop: 6 }}>
+            These stay on your desk. Nothing here has been emailed to a business.
+          </p>
+          <ul style={{ listStyle: 'none', display: 'grid', gap: 10, marginTop: 10 }}>
+            {notices.map(item => (
+              <li key={item.id} style={{ borderTop: '1px solid var(--brd)', paddingTop: 10 }}>
+                <strong>{item.title}</strong>
+                <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 4 }}>{item.body}</p>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                  {item.kind === 'interest' && (
+                    <button type="button" className="btn btn-lime" style={{ fontSize: 12 }} onClick={() => saveInterest(item)}>
+                      Save as client
+                    </button>
+                  )}
+                  <button type="button" className="btn btn-ghost" style={{ fontSize: 12 }} aria-label={`Dismiss ${item.title}`} onClick={() => hideNotice(item)}>
+                    Dismiss
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="card" style={{ padding: 16, marginBottom: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>

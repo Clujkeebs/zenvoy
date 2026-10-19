@@ -26,6 +26,11 @@ Zenvylo does three things that require a product, not a conversation:
    from those records directly. It does not send email.
 4. It builds a proof page. The link contains the measurements. The code on
    the page is a hash of them. Editing the link makes the code stop matching.
+   The business can leave a name and a note on that page. The note is stored
+   for the freelancer. Zenvylo does not email the business.
+5. An optional morning email goes to the freelancer's own address, and only
+   if they turn it on. It lists measured changes and follow-up dates. It is
+   not sent to prospects. The same notes appear on the Today desk either way.
 
 Scores are computed in code from those checks, weighted for the service you
 sell. Outreach drafts, on paid plans, are told to cite only those checks.
@@ -68,6 +73,7 @@ CSV import costs no scans and runs the same measurement pipeline.
 - Blog: https://zenvylo.app/blog/
 - Why measured audits beat chatbots: https://zenvylo.app/blog/why-measured-audits-beat-chatbots.html
 - How to send a proof page: https://zenvylo.app/blog/how-to-send-a-proof-page.html
+- Shareable mini audit: https://zenvylo.app/audit.html
 - Re-check saved prospects: https://zenvylo.app/blog/recheck-saved-prospects.html
 - How to find freelance clients: https://zenvylo.app/blog/how-to-find-freelance-clients.html
 - Terms: https://zenvylo.app/legal/terms.html

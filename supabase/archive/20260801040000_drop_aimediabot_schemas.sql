@@ -1,3 +1,6 @@
+-- MOVED OUT OF supabase/migrations so `supabase db push` cannot apply it.
+-- The statements below are unchanged. Do not move this file back.
+--
 -- NOT APPLIED. Do not run this file.
 -- Version 20260801040000 is not in the live schema_migrations table.
 -- `supabase db push` would apply it, because every unrecorded version runs.

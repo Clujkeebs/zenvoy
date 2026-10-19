@@ -6,7 +6,7 @@
  * account and see exactly what was observed — not a sales paragraph.
  * ─────────────────────────────────────────────────────────────────────── */
 
-import { compareToPeers } from './benchmark'
+import { compareToPeers } from './benchmark.js'
 
 const PROOF_VERSION = 1
 
@@ -53,6 +53,7 @@ function pickMeasurement(m) {
     copyrightYear: m.copyrightYear ?? null,
     platform: m.platform || null,
     looksParked: m.looksParked ?? null,
+    truncated: m.truncated === true,
     measuredAt: m.measuredAt || null,
   }
 }
@@ -61,7 +62,7 @@ function pickMeasurement(m) {
  * Build the public document for one lead.
  * AI copy and suggested prices stay off this page on purpose.
  */
-export function buildProofDocument(lead, preparer = '') {
+export function buildProofDocument(lead, preparer = '', extra = {}) {
   const m = pickMeasurement(lead?.siteMeasurement)
   const comparison = compareToPeers(lead?.siteMeasurement, lead?.benchmark)
   return {
@@ -83,6 +84,7 @@ export function buildProofDocument(lead, preparer = '') {
     measurement: m,
     peerHeadlines: comparison.ready ? comparison.headlines.slice(0, 3) : [],
     peerSample: comparison.ready ? comparison.sampleSize : 0,
+    ...(extra.ownerId ? { ownerId: extra.ownerId } : {}),
     ...(lead?.sample ? { sample: true } : {}),
   }
 }
@@ -128,8 +130,8 @@ export async function verifyProof(doc) {
   return { ok, reason: ok ? 'match' : 'altered' }
 }
 
-export async function proofLink(lead, preparer, origin = 'https://zenvylo.app') {
-  const signed = await signProof(buildProofDocument(lead, preparer))
+export async function proofLink(lead, preparer, origin = 'https://zenvylo.app', extra = {}) {
+  const signed = await signProof(buildProofDocument(lead, preparer, extra))
   const token = encodeProof(signed)
   const base = String(origin || '').replace(/\/$/, '')
   return { url: `${base}/proof#${token}`, code: signed.code, token, signed }

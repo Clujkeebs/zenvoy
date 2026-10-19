@@ -91,6 +91,7 @@ function Report({ doc, ok }) {
           <h2 style={{ fontSize: 22, margin: '18px 0 6px' }}>What was observed</h2>
           {row('Address fetched', m.url)}
           {row('Loaded', m.reachable ? `Yes${m.status ? ` (status ${m.status})` : ''}` : `No${m.error ? ` — ${m.error}` : ''}`)}
+          {m.reachable && m.truncated && row('Page size', 'Only the first 400KB was read. Anything past that cut was not measured.')}
           {m.reachable && row('HTTPS', m.https == null ? null : m.https ? 'Yes' : 'No — served over http')}
           {m.reachable && row('Response time', m.responseMs != null ? `${(m.responseMs / 1000).toFixed(1)} seconds` : null)}
           {m.reachable && row('Mobile viewport', m.hasViewport == null ? null : m.hasViewport ? 'Present' : 'Not found')}
@@ -139,10 +140,84 @@ function Report({ doc, ok }) {
         </p>
       )}
 
+      {ok && <InterestForm doc={doc} />}
+
       <p style={{ marginTop: 18, fontSize: 12, color: '#8a7f70', lineHeight: 1.5 }}>
         This page is a record of a public webpage at the time it was fetched. It is not legal, security, or business advice, and it is not a promise that fixing the items will bring customers.
         {doc.website ? <> Source listing website: {doc.website}.</> : null}
       </p>
     </>
+  )
+}
+
+function InterestForm({ doc }) {
+  const [fromName, setFromName] = useState('')
+  const [note, setNote] = useState('')
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  if (doc.sample) {
+    return (
+      <p style={{ marginTop: 22, fontSize: 14, lineHeight: 1.5 }}>
+        This is a sample document. A note here notifies nobody.
+      </p>
+    )
+  }
+  if (!doc.ownerId) {
+    return (
+      <p style={{ marginTop: 22, fontSize: 14, lineHeight: 1.5 }}>
+        This report was shared before replies could reach a desk. Ask for a new link.
+      </p>
+    )
+  }
+
+  const send = async (event) => {
+    event.preventDefault()
+    const name = fromName.trim()
+    if (!name) {
+      setMsg('Add your name so they know who wrote.')
+      return
+    }
+    const base = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    if (!base || !key) {
+      setMsg('The inbox is not connected on this copy. Your note was not sent.')
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await fetch(`${String(base).replace(/\/$/, '')}/functions/v1/audit-interest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({ token: tokenFromLocation(), fromName: name, note: note.slice(0, 500) }),
+      })
+      const data = await res.json().catch(() => ({}))
+      setMsg(res.ok
+        ? 'Saved on their desk. You were not emailed, and the business was not emailed.'
+        : (data.error || 'The note was not saved.'))
+      if (res.ok) setNote('')
+    } catch {
+      setMsg('The note was not sent. The inbox could not be reached.')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <form onSubmit={send} style={{ marginTop: 22 }}>
+      <h2 style={{ fontSize: 22, marginBottom: 6 }}>Ask the person who measured this</h2>
+      <p style={{ fontSize: 14, color: '#5c5348', marginBottom: 10, lineHeight: 1.5 }}>
+        Your name and note go to their desk. Zenvylo does not email you, and it does not email the business.
+      </p>
+      <label htmlFor="audit-from" style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Your name</label>
+      <input id="audit-from" className="inp" value={fromName} onChange={e => setFromName(e.target.value)} maxLength={80} required style={{ width: '100%', marginBottom: 10 }} />
+      <label htmlFor="audit-note" style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Note</label>
+      <textarea id="audit-note" className="inp" value={note} onChange={e => setNote(e.target.value.slice(0, 500))} maxLength={500} rows={4} style={{ width: '100%', marginBottom: 10 }} />
+      <button type="submit" className="btn btn-lime" disabled={busy}>{busy ? 'Sending…' : 'Send to their desk'}</button>
+      {msg && <p role="status" style={{ marginTop: 8, fontSize: 14 }}>{msg}</p>}
+    </form>
   )
 }

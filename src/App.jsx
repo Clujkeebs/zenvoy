@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react'
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import Icon from './icons/Icon'
 import { PLANS, getScansLeft, getScansLimit, getLeadsPerScan, getBonusScans } from './constants/plans'
@@ -19,15 +19,16 @@ import Home from './components/home/Home'
 import LeadsPage from './components/leads/LeadsPage'
 import ClientsPage from './components/clients/ClientsPage'
 // import CommunityPage from './components/community/CommunityPage' // Coming soon
-import ToolsPage from './components/tools/ToolsPage'
-import AnalyticsPage from './components/analytics/AnalyticsPage'
-import HistoryPage from './components/history/HistoryPage'
-import SubscriptionPage from './components/settings/SubscriptionPage'
 import SettingsPage from './components/settings/SettingsPage'
-import EnterprisePage from './components/pages/EnterprisePage'
-import SupportPage from './components/pages/SupportPage'
-import AdminDashboard from './components/admin/AdminDashboard'
-import AffiliateDashboard from './components/affiliate/AffiliateDashboard'
+
+const ToolsPage = lazy(() => import('./components/tools/ToolsPage'))
+const AnalyticsPage = lazy(() => import('./components/analytics/AnalyticsPage'))
+const HistoryPage = lazy(() => import('./components/history/HistoryPage'))
+const SubscriptionPage = lazy(() => import('./components/settings/SubscriptionPage'))
+const EnterprisePage = lazy(() => import('./components/pages/EnterprisePage'))
+const SupportPage = lazy(() => import('./components/pages/SupportPage'))
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'))
+const AffiliateDashboard = lazy(() => import('./components/affiliate/AffiliateDashboard'))
 import ProofPage from './components/proof/ProofPage'
 import CookieNotice from './components/layout/CookieNotice'
 import AgentDesk from './components/agent/AgentDesk'
@@ -481,7 +482,8 @@ export default function App() {
 
       <main className="app-main">
         <div key={tab} className="fu" style={{ minHeight: "100%", animationDuration: ".18s" }}>
-        {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} onUpdateLead={updLead} />}
+        <Suspense fallback={<p style={{ padding: 24, color: "var(--txt2)" }}>Loading…</p>}>
+        {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} onUpdateLead={updLead} onAddClient={addClient} />}
         {tab === "agent"        && <AgentDesk user={user} leads={leads} onSave={handleLeads} onUpdateLead={updLead} onUpgrade={handleUpgrade} />}
         {tab === "leads"        && <LeadsPage user={user} leads={leads} onUpdate={updLead} onDelete={delLead} onImported={addLeads} onSearch={openSearch} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "clients"      && <ClientsPage clients={clients} leads={leads} onAdd={addClient} onUpdate={updClient} onDelete={delClient} onNav={setTab} />}
@@ -498,6 +500,7 @@ export default function App() {
         {tab === "affiliate"    && ((user?.affiliateId || user?.isAffiliate)
           ? <AffiliateDashboard user={user} />
           : <AccessDenied onNav={setTab} />)}
+        </Suspense>
         </div>
       </main>
 

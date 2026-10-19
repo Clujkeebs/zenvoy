@@ -39,6 +39,15 @@ export const mkRefCode = email => "ZL-" + email.split("@")[0].slice(0, 4).toUppe
 /** Escape a CSV cell — quotes are doubled, not swapped for apostrophes. */
 const csvCell = v => '"' + String(v ?? "").replace(/"/g, '""') + '"'
 
+function downloadCsv(filename, csv) {
+  const a = document.createElement("a")
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }))
+  a.href = url
+  a.download = filename
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export function csvExport(leads) {
   const h = [
     "Name", "Type", "Country", "City", "Phone", "Website",
@@ -63,10 +72,35 @@ export function csvExport(leads) {
     ]
   })
   const csv = [h, ...rows].map(r => r.map(csvCell).join(",")).join("\n")
-  const a = document.createElement("a")
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }))
-  a.href = url
-  a.download = "leads_" + Date.now() + ".csv"
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadCsv("leads_" + Date.now() + ".csv", csv)
+}
+
+/**
+ * A short sheet for dropping into a CRM. Only columns we stored.
+ * No email column: we do not invent one, and we do not export a prospect address.
+ */
+export function crmCsv(leads) {
+  const h = [
+    "Name", "Phone", "Website", "City", "Country", "Stage",
+    "Follow-up date", "Last measured", "First finding",
+  ]
+  const rows = (leads || []).map(l => {
+    const measured = l.auditedAt || l.siteMeasurement?.measuredAt || ""
+    return [
+      l.name || "",
+      l.phone || "",
+      l.website || "",
+      l.city || "",
+      l.country || "",
+      l.status || "new",
+      l.followUpDate ? String(l.followUpDate).slice(0, 10) : "",
+      measured ? String(measured).slice(0, 10) : "",
+      l.findings?.[0]?.evidence || "",
+    ]
+  })
+  return [h, ...rows].map(r => r.map(csvCell).join(",")).join("\n")
+}
+
+export function crmExport(leads) {
+  downloadCsv("crm_" + Date.now() + ".csv", crmCsv(leads))
 }

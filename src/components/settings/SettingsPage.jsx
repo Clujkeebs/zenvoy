@@ -14,6 +14,8 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
   const [imgUrl, setImgUrl] = useState(user.profileImageUrl || null);
   const [uploading, setUploading] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [digestOn, setDigestOn] = useState(!!user.digestOptIn);
+  const [digestMsg, setDigestMsg] = useState('');
   const [referrals, setReferrals] = useState([]);
   const fileRef = useRef(null);
   const refLink = `${window.location.origin}?ref=${user.refCode}`;
@@ -26,6 +28,24 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
     }
     load();
   }, []);
+
+  const toggleDigest = async (next) => {
+    if (user.sample) {
+      setDigestMsg('This is a sample account. It is not a real inbox, so the daily email stays off.');
+      return;
+    }
+    setDigestOn(next);
+    const { error } = await DB.updateDigestOptIn(next);
+    if (error) {
+      setDigestOn(!next);
+      setDigestMsg(error);
+      return;
+    }
+    onUpdate({ ...user, digestOptIn: next });
+    setDigestMsg(next
+      ? `A morning note will go to ${user.email} when a saved site changed or a follow-up is due. Businesses are not emailed.`
+      : 'Daily email is off. Notes still show on the Today desk.');
+  };
 
   const save = async () => {
     const { error } = await DB.updateOwnProfile({ name, svc });
@@ -107,6 +127,18 @@ export default function SettingsPage({ user, onUpdate, onLogout, onGoSubscriptio
           </div>
         </div>
         <button className="btn btn-lime" onClick={save}><I n="check" s={14}/>{saved?"Saved! ✓":"Save Changes"}</button>
+      </div>
+
+      <div className="card" style={{ padding:"19px 22px",marginBottom:12 }}>
+        <div style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:14,marginBottom:8 }}>Daily desk note</div>
+        <label htmlFor="digest-opt-in" style={{ display:"flex", gap:10, alignItems:"flex-start", fontSize:14, cursor:"pointer" }}>
+          <input id="digest-opt-in" type="checkbox" checked={digestOn} onChange={e => toggleDigest(e.target.checked)} style={{ marginTop:3 }} />
+          <span>Email me a daily desk note. It goes only to {user.email}. It is never sent to a business.</span>
+        </label>
+        <p style={{ fontSize:12, color:"var(--txt3)", marginTop:8, lineHeight:1.5 }}>
+          The note lists measured changes and follow-up dates you already set. Turn it on only if you want that email. The Today desk shows the same notes either way.
+        </p>
+        {digestMsg && <p role="status" style={{ fontSize:13, color:"var(--txt2)", marginTop:8 }}>{digestMsg}</p>}
       </div>
 
       <div className="card" style={{ padding:"19px 22px",marginBottom:12 }}>

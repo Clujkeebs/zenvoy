@@ -167,6 +167,80 @@ export async function updateOwnProfile(updates) {
 }
 
 /**
+ * Daily email opt-in. Kept off the general profile save: if the column is
+ * not on the project yet, that save must still succeed.
+ */
+export async function updateDigestOptIn(on) {
+  const userId = await getUserId()
+  if (!userId) return { error: 'Not signed in' }
+  const { error } = await supabase.from('profiles').update({ digest_opt_in: !!on }).eq('id', userId)
+  if (!error) return { error: null }
+  const missing = /digest_opt_in|schema cache|column/i.test(error.message)
+  return {
+    error: missing
+      ? 'Daily email needs a database update that is not on this project yet. The switch was not saved.'
+      : error.message,
+  }
+}
+
+export async function listDeskNotices() {
+  const userId = await getUserId()
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('desk_notices')
+    .select('id, kind, title, body, business_name, created_at, read_at')
+    .eq('user_id', userId)
+    .is('read_at', null)
+    .order('created_at', { ascending: false })
+    .limit(8)
+  if (error) return []
+  return (data || []).map(row => ({ ...toCamel(row), server: true }))
+}
+
+export async function markNoticeRead(id) {
+  const { error } = await supabase
+    .from('desk_notices')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', id)
+  return { error: error?.message || null }
+}
+
+export async function listSavedSearches() {
+  const userId = await getUserId()
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('saved_searches')
+    .select('id, label, country, city, service_id, service_custom, lead_count, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(12)
+  if (error) return []
+  return (data || []).map(toCamel)
+}
+
+export async function insertSavedSearch(entry) {
+  const userId = await getUserId()
+  if (!userId) return { error: 'Not signed in' }
+  const { error } = await supabase.from('saved_searches').insert({
+    user_id: userId,
+    label: String(entry.label || '').slice(0, 80),
+    country: entry.country || '',
+    city: entry.city || '',
+    service_id: entry.serviceId || '',
+    service_custom: entry.serviceCustom || '',
+    lead_count: entry.leadCount || null,
+  })
+  if (!error) return { error: null }
+  if (/saved_searches|schema cache|relation/i.test(error.message)) return { error: 'browser-only' }
+  return { error: error.message }
+}
+
+export async function deleteSavedSearch(id) {
+  const { error } = await supabase.from('saved_searches').delete().eq('id', id)
+  return { error: error?.message || null }
+}
+
+/**
  * Privileged operations on *other* users. Routed through the admin-actions
  * edge function, which verifies the caller's role server-side and writes an
  * audit row. The browser has no direct write path to these columns.
