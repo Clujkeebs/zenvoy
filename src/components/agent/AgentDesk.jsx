@@ -258,7 +258,7 @@ export default function AgentDesk({ user, leads, onSave, onUpdateLead, onUpgrade
             <div key={i}>
               <div style={{ fontSize: 12, color: 'var(--txt3)' }}>{m.role === 'you' ? 'You' : 'Desk'}</div>
               <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{m.text}</p>
-              {(m.citations || []).map(c => (
+              {(m.citations || []).filter(c => !m.text.includes(c.text)).map(c => (
                 <p key={c.leadId + c.text} style={{ fontSize: 13, color: 'var(--txt2)', margin: '4px 0 0' }}>
                   {c.name}: {c.text}
                 </p>
