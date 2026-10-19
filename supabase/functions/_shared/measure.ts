@@ -143,7 +143,7 @@ export async function measureSite(rawUrl: string): Promise<SiteMeasurement> {
     responseMs,
     measuredAt,
     truncated: body.truncated,
-  })
+  }) as SiteMeasurement
 }
 
 /** Measure many sites with bounded concurrency. */

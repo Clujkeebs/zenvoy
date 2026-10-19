@@ -7,7 +7,7 @@
  * Every change below cites both observations. Nothing here is inferred.
  * ─────────────────────────────────────────────────────────────────────── */
 
-import { deriveFindings, scoreFindings } from './evidence'
+import { deriveFindings, scoreFindings } from './evidence.js'
 
 const SPEED_RATIO = 1.4
 const SPEED_DELTA_MS = 400

@@ -1,30 +1,26 @@
 // ─── Shared HTTP / auth helpers for edge functions ──────────────────────
 
+import { resolveAllowOrigin } from "./cors.js";
+
 /**
- * Allowed browser origins. Set ALLOWED_ORIGINS to a comma-separated list in
- * production (e.g. "https://zenvylo.app,https://www.zenvylo.app").
- * Falls back to "*" only when unset, so local dev keeps working.
+ * Allowed browser origins. Set ALLOWED_ORIGINS to a comma-separated list.
+ * Values are trimmed, lowercased, and stripped of trailing slashes before
+ * they are compared. https://zenvylo.app and https://www.zenvylo.app are
+ * always allowed. The response echoes the request Origin only on a match.
+ * When the secret is unset, local dev still gets "*".
  */
-function allowedOrigins(): string[] {
-  return (Deno.env.get("ALLOWED_ORIGINS") || "")
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean)
-}
-
 export function corsHeaders(req: Request): Record<string, string> {
-  const list = allowedOrigins()
-  const origin = req.headers.get("Origin") || ""
-  const allow = list.length === 0
-    ? "*"
-    : (list.includes(origin) ? origin : list[0])
-
-  return {
-    "Access-Control-Allow-Origin": allow,
+  const allow = resolveAllowOrigin(
+    req.headers.get("Origin") || "",
+    Deno.env.get("ALLOWED_ORIGINS") || "",
+  )
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
   }
+  if (allow) headers["Access-Control-Allow-Origin"] = allow
+  return headers
 }
 
 export function json(req: Request, body: unknown, status = 200): Response {

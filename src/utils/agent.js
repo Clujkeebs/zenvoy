@@ -6,9 +6,9 @@
  * quote those findings. It never sends email. The user copies or approves.
  * ─────────────────────────────────────────────────────────────────────── */
 
-import { COUNTRIES, STATUSES } from '../constants/services'
-import { canAI, getLeadCap, getTotalScansLeft } from '../constants/plans'
-import { isTrialActive } from './trial'
+import { COUNTRIES, STATUSES } from '../constants/services.js'
+import { canAI, getLeadCap, getTotalScansLeft } from '../constants/plans.js'
+import { isTrialActive } from './trial.js'
 
 const DAY = 86_400_000
 
