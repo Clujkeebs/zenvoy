@@ -13,7 +13,7 @@ import WorkQueue from './WorkQueue'
 import GoalTracker from './GoalTracker'
 const I = Icon
 
-export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser, onUpdateLead, onAddClient }) {
+export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser, onUpdateLead, onAddClient, onShowSetup }) {
   const desk = buildDesk(leads)
   const actions = nextActions(leads)
   const digest = buildDigest(leads)
@@ -71,20 +71,21 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
     setBusy(true)
     setNote(`Checking ${targets.length} saved site${targets.length === 1 ? '' : 's'}…`)
     let changed = 0
+    let failed = 0
     for (const lead of targets) {
       try {
         const measurement = await DB.auditSite(lead.website, lead.id)
         const next = applyRescan(lead, measurement)
         if ((next.watchLog || []).length > (lead.watchLog || []).length) changed += 1
         onUpdateLead(next)
-      } catch (e) {
-        setNote(e.message || 'A site could not be re-checked.')
+      } catch {
+        failed += 1
       }
     }
     setBusy(false)
-    setNote(changed
-      ? `${changed} site${changed === 1 ? '' : 's'} changed since the last check.`
-      : 'Checked. Nothing measurable changed on those sites.')
+    if (failed && !changed) setNote(`${failed} site${failed === 1 ? '' : 's'} could not be re-checked.`)
+    else if (changed) setNote(`${changed} site${changed === 1 ? '' : 's'} changed since the last check.`)
+    else setNote('Checked. Nothing measurable changed on those sites.')
   }
 
   const copyProof = async (lead) => {
@@ -92,12 +93,17 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
       const { url } = await proofLink(lead, user.name, window.location.origin || SITE_ORIGIN, {
         ownerId: user.sample ? undefined : user.id,
       })
-      await navigator.clipboard.writeText(url)
+      try {
+        await navigator.clipboard.writeText(url)
+        setNote('Copied. Paste it to the business. They can open it with no account.')
+      } catch {
+        setNote(url)
+      }
       if (!user.sample) DB.saveProof(lead.id, lead.name, { url })
       setCopied(lead.id)
-      setTimeout(() => setCopied(''), 2000)
+      setTimeout(() => setCopied(''), 4000)
     } catch {
-      setNote('Could not copy a proof link from this browser.')
+      setNote('Could not build a proof link from this lead.')
     }
   }
 
@@ -106,6 +112,8 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
       {user.sample && (
         <div className="sample-banner">
           Sample desk. Harbour Coffee, Loom & Dye and Pike Plumbing are examples, not live scans. Sign up to measure real businesses.
+          {' '}
+          <button type="button" className="btn btn-ghost" style={{ fontSize: 12, marginLeft: 8 }} onClick={onShowSetup}>Show setup steps</button>
         </div>
       )}
 
@@ -164,7 +172,11 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
         </div>
         <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 6 }}>{digest.summary}</p>
         {actions.length === 0 ? (
-          <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 8 }}>Nothing to do yet. Run a scan, or give the agent a goal.</p>
+          <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 8 }}>
+            {leads.length === 0
+              ? 'Run a scan first. Pick what you sell and a place. The desk fills in after businesses are saved.'
+              : 'Nothing to do yet. Run a scan, or give the agent a goal.'}
+          </p>
         ) : (
           <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
             {actions.slice(0, 3).map(a => (
@@ -186,7 +198,9 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
         </p>
         {desk.changes.length === 0 ? (
           <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 8, lineHeight: 1.5 }}>
-            Nothing new since you last looked. Re-check a saved site after a week — a site that fixed HTTPS, or one that went down, changes the note you should send.
+            {leads.length === 0
+              ? 'Nothing is on watch yet. After a scan, come back and re-check. A change shows up here only when a later measurement differs.'
+              : 'Nothing new since you last looked. Re-check a saved site after a week. A site that fixed HTTPS, or one that went down, changes the note you should send.'}
           </p>
         ) : desk.changes.map(item => (
           <article key={item.lead.id} style={{ borderTop: '1px solid var(--brd)', padding: '12px 0' }}>
@@ -210,7 +224,9 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
       <section style={{ marginBottom: 14 }}>
         <h2 style={{ fontSize: 26, marginBottom: 8 }}>Best leads not contacted</h2>
         {desk.fresh.length === 0 ? (
-          <p style={{ color: 'var(--txt2)', fontSize: 14 }}>No untouched leads. Run a scan or import a list.</p>
+          <p style={{ color: 'var(--txt2)', fontSize: 14 }}>
+            {leads.length === 0 ? 'No leads yet. A scan is the first step.' : 'No untouched leads. Run a scan or import a list.'}
+          </p>
         ) : (
           <div style={{ display: 'grid', gap: 8 }}>
             {desk.fresh.map(l => (

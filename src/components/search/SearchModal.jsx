@@ -12,7 +12,7 @@ const I = Icon
 export default function SearchModal({ user, onClose, onDone, onUpgrade, initialCity = '' }) {
   const [svc,       setSvc]       = useState(user.svc || 'web')
   const [customSvc, setCustomSvc] = useState('')
-  const [country,   setCountry]   = useState(canMulti(user) ? '' : (user.country || 'United Kingdom'))
+  const [country,   setCountry]   = useState(user.country || '')
   const [city,      setCity]      = useState(initialCity)
   const leadCap = getLeadCap(user)
   const [leadCount, setLeadCount] = useState(() => {
@@ -222,7 +222,7 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade, initialC
         }}>
           <div>
             <div style={{ fontFamily: 'var(--fh)', fontWeight: 800, fontSize: 20 }}>
-              {scanning ? 'Scanning ' + (city || country || 'your location') + '…' : 'Find New Leads'}
+              {scanning ? 'Scanning ' + (city || country || 'your location') + '…' : 'New scan'}
             </div>
             {scanning && (
               <div style={{ fontSize: 12, color: 'var(--txt3)', marginTop: 2 }}>

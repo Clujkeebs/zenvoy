@@ -186,7 +186,7 @@ export default function App() {
   const PAGE_TITLES = useMemo(() => ({
     home: "Dashboard — Zenvylo", leads: "My Leads — Zenvylo",
     clients: "Clients — Zenvylo", community: "Community — Zenvylo",
-    tools: "Business Tools — Zenvylo", analytics: "Analytics — Zenvylo",
+    tools: "Business Tools — Zenvylo", analytics: "Stats — Zenvylo",
     history: "Scan History — Zenvylo", subscription: "Subscription — Zenvylo",
     settings: "Settings — Zenvylo", enterprise: "Enterprise — Zenvylo",
     support: "Support — Zenvylo", admin: "Admin — Zenvylo",
@@ -238,6 +238,10 @@ export default function App() {
   }, [])
 
   const doneBoard = useCallback((extra = {}) => {
+    if (user?.sample) {
+      setShowBoard(false)
+      return
+    }
     Analytics.onboardingCompleted()
     const patch = { onboarded: true }
     if (extra.svc) patch.svc = extra.svc
@@ -262,7 +266,7 @@ export default function App() {
 
     // Show the leads immediately, then reconcile with what the database stored.
     setLeads(prev => [...newLeads, ...prev])
-    showToast("Found " + newLeads.length + " new leads!")
+    showToast("Found " + newLeads.length + " leads. Open one and choose Proof link.")
 
     try {
       const saved = await DB.insertLeads(newLeads)
@@ -353,7 +357,7 @@ export default function App() {
       { id: "leads",        icon: "target",    label: "Leads" + (leads.length ? " (" + leads.length + ")" : "") },
       { id: "clients",      icon: "users",     label: "Clients" + (clients.length ? " (" + clients.length + ")" : "") },
       { id: "tools",        icon: "tool",      label: "Tools" },
-      { id: "analytics",    icon: "bar",       label: "Analytics" },
+      { id: "analytics",    icon: "bar",       label: "Stats" },
       { id: "history",      icon: "clock",     label: "History" },
       { id: "subscription", icon: "crown",     label: "Subscription" },
       { id: "support",      icon: "info",      label: "Support" },
@@ -426,7 +430,7 @@ export default function App() {
                 {scansLeft} scan{scansLeft !== 1 ? "s" : ""} left
               </span>
               <button style={{ fontSize: 10, fontWeight: 700, color: "var(--blue)", cursor: "pointer", background: "none", border: "none", flexShrink: 0 }} onClick={() => setTab("subscription")}>
-                {scansLeft === 0 ? "Upgrade!" : "↑"}
+                {scansLeft === 0 ? "Upgrade" : "Plans"}
               </button>
             </div>
             <div style={{ height: 3, borderRadius: 2, background: "var(--s3)", overflow: "hidden" }}>
@@ -439,7 +443,7 @@ export default function App() {
         )}
 
         <button className="btn btn-lime sidebar-search-btn" style={{ width: "100%", justifyContent: "center", marginBottom: 12, fontSize: 13, padding: "10px" }} onClick={openSearch}>
-          <I n="search" s={14} /><span>New Search</span><span style={{ marginLeft: "auto", fontSize: 10, opacity: .55 }}>⌘K</span>
+          <I n="search" s={14} /><span>New scan</span><span style={{ marginLeft: "auto", fontSize: 10, opacity: .55 }}>⌘K</span>
         </button>
 
         <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
@@ -483,7 +487,7 @@ export default function App() {
       <main className="app-main">
         <div key={tab} className="fu" style={{ minHeight: "100%", animationDuration: ".18s" }}>
         <Suspense fallback={<p style={{ padding: 24, color: "var(--txt2)" }}>Loading…</p>}>
-        {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} onUpdateLead={updLead} onAddClient={addClient} />}
+        {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} onUpdateLead={updLead} onAddClient={addClient} onShowSetup={() => setShowBoard(true)} />}
         {tab === "agent"        && <AgentDesk user={user} leads={leads} onSave={handleLeads} onUpdateLead={updLead} onUpgrade={handleUpgrade} />}
         {tab === "leads"        && <LeadsPage user={user} leads={leads} onUpdate={updLead} onDelete={delLead} onImported={addLeads} onSearch={openSearch} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "clients"      && <ClientsPage clients={clients} leads={leads} onAdd={addClient} onUpdate={updClient} onDelete={delClient} onNav={setTab} />}
@@ -524,7 +528,7 @@ export default function App() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(180px,100%),1fr))", gap: 10, marginBottom: 16 }}>
               {[
                 {id:"clients",icon:"users",label:"Clients",color:"var(--blue)"},
-                {id:"analytics",icon:"bar",label:"Analytics",color:"var(--purple)"},
+                {id:"analytics",icon:"bar",label:"Stats",color:"var(--purple)"},
                 {id:"history",icon:"clock",label:"History",color:"var(--amber)"},
                 {id:"subscription",icon:"crown",label:"Subscription",color:"var(--lime)"},
                 {id:"support",icon:"info",label:"Support",color:"var(--blue)"},
@@ -559,7 +563,7 @@ export default function App() {
       )}
 
       {showSearch && <SearchModal user={user} initialCity={searchSeed} onClose={() => setShowSearch(false)} onDone={handleLeads} onUpgrade={handleUpgrade} />}
-      {showBoard && <OnboardOverlay onDone={doneBoard} />}
+      {showBoard && <OnboardOverlay onDone={doneBoard} initialSvc={user.svc} initialCountry={user.country} preview={!!user.sample} />}
       {upgradeFor && <UpgradeModal feature={upgradeFor.feature} requiredPlan={upgradeFor.plan} onClose={() => setUpgradeFor(null)} onGoSettings={() => { setTab("settings"); setUpgradeFor(null) }} />}
       <Toast msg={toast} />
       <CookieNotice />

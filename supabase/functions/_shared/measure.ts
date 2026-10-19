@@ -8,6 +8,7 @@
 // blocked, response headers are invisible, and timing is unreliable.
 
 import { classifyFetchError, interpretFetched, nextHop, MAX_HTML_BYTES } from "./interpret.js";
+import { isSafeUrl } from "./safeUrl.js";
 
 const FETCH_TIMEOUT_MS = 8000
 const MAX_REDIRECTS = 3
@@ -38,42 +39,6 @@ export interface SiteMeasurement {
   looksParked?: boolean
   truncated?: boolean
   measuredAt: string
-}
-
-/**
- * Reject URLs that point inside our own network. An authenticated caller could
- * otherwise use this function to probe internal services (SSRF).
- *
- * Note: this blocks literal private addresses and known-local hostnames. It
- * does not defend against a hostile DNS record resolving to a private IP; that
- * needs egress filtering at the network layer.
- */
-const BLOCKED_HOST_PATTERNS = [
-  /^localhost$/i,
-  /\.local$/i,
-  /\.internal$/i,
-  /^\[?::1\]?$/,
-  /^0\./,
-  /^127\./,
-  /^10\./,
-  /^192\.168\./,
-  /^169\.254\./,                          // link-local, incl. cloud metadata
-  /^172\.(1[6-9]|2\d|3[01])\./,           // 172.16.0.0/12
-  /^metadata\./i,
-]
-
-function isSafeUrl(raw: string): URL | null {
-  let u: URL
-  try {
-    u = new URL(raw)
-  } catch {
-    return null
-  }
-  if (u.protocol !== "http:" && u.protocol !== "https:") return null
-  const host = u.hostname
-  if (!host || !host.includes(".") && !host.startsWith("[")) return null
-  if (BLOCKED_HOST_PATTERNS.some(re => re.test(host))) return null
-  return u
 }
 
 /** Fetch following redirects manually so every hop gets re-validated. */

@@ -14,6 +14,7 @@ import { json, preflight, requireUser, AuthError } from "../_shared/http.ts";
 import { measureAll, measureSite } from "../_shared/measure.ts";
 
 const MAX_URLS = 24;
+const LEAD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Measuring costs us egress and time, so it gets a rate limit of its own.
 const LIMIT_PER_MINUTE = 6;
@@ -76,14 +77,15 @@ Deno.serve(async (req: Request) => {
       // Persist onto the lead when the caller owns it, so a refreshed audit
       // survives a page reload. RLS is bypassed here (service role), hence the
       // explicit ownership filter.
-      if (body.leadId) {
+      const leadId = typeof body.leadId === "string" && LEAD_ID.test(body.leadId) ? body.leadId : "";
+      if (leadId) {
         await supabase
           .from("leads")
           .update({
             site_measurement: measurement,
             audited_at: measurement.measuredAt,
           })
-          .eq("id", body.leadId)
+          .eq("id", leadId)
           .eq("user_id", profile.id);
       }
 

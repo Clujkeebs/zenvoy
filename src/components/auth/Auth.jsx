@@ -173,17 +173,14 @@ export default function Auth({ onAuth, initialMode = "login" }) {
                 fontFamily: "var(--fm)", wordBreak: "break-all",
               }}>{email}</p>
               <p style={{ fontSize: 12.5, color: "var(--txt3)", marginBottom: 20, lineHeight: 1.6 }}>
-                Click the link in the email to sign in instantly.
-                No password required. Check your spam folder if you don't see it.
+                Open whichever inbox that address uses. Click the link in the message.
+                After that, Zenvylo asks what you sell and where the first scan should look.
+                Check spam if it is not there in a minute.
               </p>
 
-              <button className="btn btn-lime btn-xl" style={{ width: "100%", marginBottom: 10 }}
-                onClick={() => window.open(`https://mail.google.com`, '_blank')}>
-                Open Gmail
-              </button>
               <button className="btn btn-ghost" style={{ width: "100%" }}
                 onClick={() => { setSent(false); setErr("") }}>
-                ← Use a different email
+                Use a different email
               </button>
             </div>
 

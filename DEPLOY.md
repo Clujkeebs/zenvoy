@@ -1,112 +1,126 @@
-# Deployment — what you have to do
+# Deploy Zenvylo
 
-**None of the security fixes in this branch are live until you complete steps 1–4.**
-The code is correct; the database and the deployed functions are not yet.
+Do these steps in order. This file does not deploy anything. It does not change Stripe prices. Do not put secret values in git.
 
-Your Supabase project (`tyhhtbtxdwxjcziwmrpx`) is currently **paused**, so the
-app is down anyway. Restore it first, from the Supabase dashboard.
+The live project is `tyhhtbtxdwxjcziwmrpx`. The site is https://zenvylo.app.
 
----
+## 1. Leave the old drop file alone
 
-## 1. Run the migration
+`supabase/archive/20260801040000_drop_aimediabot_schemas.sql` was never applied. The schemas were already gone. Do not move that file back into `supabase/migrations`, and do not run it.
 
-Supabase Dashboard → SQL Editor → paste
-`supabase/migrations/20260729000000_hardening.sql` → Run.
+`supabase db push` will not see it. Push will apply the two files in the next step, because those versions are not recorded yet.
 
-It is idempotent — safe to run twice, and safe on a database whose exact state
-we couldn't inspect.
+## 2. Apply the pending migrations
 
-**Take a database backup first.** It changes permissions, and getting locked out
-of your own tables is a bad afternoon.
+These two files are not on the live database yet. Apply the re-check one first, then the desk one. You can paste each file into the SQL editor, or run `supabase db push` once. Do not `db reset` this project.
 
-Then run the four verification queries at the bottom of that file. All four must
-behave as described before you move on.
+1. `supabase/migrations/20261019035639_recheck_saved_prospects.sql`
+   Adds the daily re-check job. It does not drop anything. The job errors each morning until step 4 and step 5 are done.
+2. `supabase/migrations/20261019044856_desk_notices_and_digest.sql`
+   Adds the digest switch, in-app notices, proof-page replies, saved searches, and the morning note job. Same warning: the job errors until the function and the Vault secrets exist.
 
-## 2. Set the secrets
+Files already recorded on the live database, as of 19 Oct 2026, do not need to be applied again:
 
-```bash
-supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...     # Stripe → Webhooks → your endpoint → Signing secret
-supabase secrets set STRIPE_SECRET_KEY=sk_live_...       # if not already set
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...        # if not already set
-supabase secrets set ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com
+- `20260730222009_security_hardening.sql`
+- `20260731173419_freelancer_workflow_features.sql`
+- `20260801023428_track_billing_period.sql`
+- `20260801030250_lock_down_function_execute_grants.sql`
+- `20260801145756_local_benchmark.sql` (comments only; the version is already recorded)
+- `20261019024229_proof_desk_watch.sql`
+- `20261019030653_harden_proofs_access.sql`
+
+Preview branches are still unsafe. No migration creates the `profiles` table.
+
+## 3. Frontend environment
+
+Set these for the Vite app. Names only:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_GA_MEASUREMENT_ID` (optional; analytics stays off until a visitor accepts cookies)
+
+## 4. Function secrets
+
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided by the platform. Set the rest with `supabase secrets set`. Do not print the values.
+
+Required for the desk agent and for scheduled jobs:
+
+- `ANTHROPIC_API_KEY` — Ask your desk. If it is missing, the desk answers from saved records and does not call a model.
+- `RECHECK_CRON_SECRET` — 16 characters or more. Used by `recheck-saved` and `daily-digest`. There is not a second cron secret.
+- `ALLOWED_ORIGINS` — comma-separated browser origins, for example `https://zenvylo.app,https://www.zenvylo.app`
+
+Optional. If either is missing, the morning job still writes an in-app notice and does not send email:
+
+- `RESEND_API_KEY`
+- `DIGEST_FROM`
+
+Stripe is already configured. This checklist does not rotate or edit it. Those names stay as they are:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_STARTER`
+- `STRIPE_PRICE_GROWTH`
+- `STRIPE_PRICE_PRO`
+- `STRIPE_PRICE_SCALE`
+
+## 5. Vault names the cron jobs read
+
+In the SQL editor, store the same `RECHECK_CRON_SECRET` and the project URL. The names must be exactly these:
+
+- `recheck_cron_secret`
+- `project_url` — value shape `https://PROJECT.supabase.co`
+
+```sql
+select vault.create_secret('<the RECHECK_CRON_SECRET value>', 'recheck_cron_secret');
+select vault.create_secret('https://PROJECT.supabase.co', 'project_url');
 ```
 
-`ALLOWED_ORIGINS` replaces `Access-Control-Allow-Origin: *`. If you leave it
-unset the functions fall back to `*` so local dev still works — set it in
-production.
+## 6. Deploy functions
 
-## 3. Deploy the functions
+From this repo, in this order:
 
 ```bash
-supabase functions deploy ai-proxy
 supabase functions deploy audit-site
+supabase functions deploy local-benchmark
+supabase functions deploy ai-proxy
+supabase functions deploy recheck-saved
+supabase functions deploy daily-digest
+supabase functions deploy audit-interest
+```
+
+`audit-site` measures websites. `recheck-saved` and a manual re-check both depend on that measurer, including the timeout, redirect, bot-wall, and non-HTML handling.
+
+`audit-interest` and `daily-digest` and `recheck-saved` are called without a user JWT. `supabase/config.toml` sets `verify_jwt = false` for those three. Each one still checks its own credential: the proof hash, or `RECHECK_CRON_SECRET`.
+
+Leave the Stripe functions as they are unless you are already redeploying the whole set:
+
+```bash
+supabase functions deploy stripe-checkout
+supabase functions deploy stripe-webhook
+```
+
+`admin-actions` is only needed if you use the admin screen:
+
+```bash
 supabase functions deploy admin-actions
-supabase functions deploy stripe-webhook --no-verify-jwt
 ```
 
-`--no-verify-jwt` on the webhook only: Stripe can't present a Supabase JWT, and
-the signature check is what authenticates it now.
+## 7. Smoke-test the live project
 
-## 4. Rotate your Anthropic key
+Put these in the environment you run the command from. Do not commit them.
 
-The old `ai-proxy` was an unauthenticated open proxy. Anyone who found the URL
-could spend your Anthropic credit, and you have no way to know whether anyone
-did. Treat the key as burned: issue a new one, set it as the secret, revoke the
-old one.
+- `SMOKE_SUPABASE_URL` — `https://PROJECT.supabase.co`
+- `SMOKE_SUPABASE_ANON_KEY`
+- `SMOKE_EMAIL` — an account you can create or sign into. If the project requires email confirmation, confirm it once, then run the command again.
+- `SMOKE_PASSWORD`
+- `SMOKE_SITE` — optional. Defaults to `https://example.com`
 
-While you're there, check the usage graph in the Anthropic console for spikes
-that don't match your traffic.
-
-## 5. Verify the webhook end to end
-
-Stripe Dashboard → Webhooks → your endpoint → **Send test webhook** →
-`customer.subscription.updated`. It should return 200.
-
-Then confirm the hole is actually closed:
+Then:
 
 ```bash
-curl -X POST https://<project>.supabase.co/functions/v1/stripe-webhook \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"customer.subscription.updated","data":{"object":{"metadata":{"supabase_uid":"any","plan":"scale"},"status":"active"}}}'
+npm run smoke
 ```
 
-Expected: `400 {"error":"Invalid signature"}`. Before this branch, that request
-granted a free Scale subscription.
+The command signs in (or signs up), measures the site, saves a lead, checks a proof document, re-checks that lead, and calls the desk agent. A free account that receives HTTP 402 from the desk agent is a pass: the plan gate worked. The command deletes the smoke lead when it can.
 
-## 6. Storage bucket
-
-If `avatars` doesn't exist: Storage → New Bucket → name `avatars`, Public ON.
-The migration adds the policies that scope writes to each user's own folder;
-without the bucket, that block is skipped silently.
-
----
-
-## Environment variables (Vercel)
-
-| Variable | Where | Notes |
-|---|---|---|
-| `VITE_SUPABASE_URL` | Vercel | Public |
-| `VITE_SUPABASE_ANON_KEY` | Vercel | Public by design — it ships in the bundle |
-
-Never put a secret behind a `VITE_` prefix. Vite inlines those into the client
-bundle at build time.
-
-## URL routing
-
-Pages now have real URLs (`/leads`, `/settings`, …). This is a single-page app,
-so the host has to serve `index.html` for any unmatched path or a refresh on
-`/leads` will 404.
-
-Vercel handles this automatically for Vite projects. If you ever move hosts, add
-the equivalent SPA fallback rewrite.
-
----
-
-## Local development
-
-```bash
-npm install
-npm run dev
-
-npm run check   # lint + tests + build, same as CI
-```
+If none of the four `SMOKE_` values are set, the command skips and exits 0. If only some are set, it exits 1.
