@@ -116,9 +116,12 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
           <h2 style={{ fontSize: 26 }}>What changed</h2>
           <span style={{ fontSize: 12, color: 'var(--txt3)' }}>{desk.watching} site{desk.watching === 1 ? '' : 's'} on watch</span>
         </div>
+        <p style={{ color: 'var(--txt3)', fontSize: 13, marginTop: 6 }}>
+          A line appears here only when a later measurement differs. The first check of a site is not a change.
+        </p>
         {desk.changes.length === 0 ? (
           <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 8, lineHeight: 1.5 }}>
-            Nothing new since you last looked. A re-check adds a line here only when a measurement changes. The first check of a site is not a change.
+            Nothing new since you last looked. Re-check a saved site after a week — a site that fixed HTTPS, or one that went down, changes the note you should send.
           </p>
         ) : desk.changes.map(item => (
           <article key={item.lead.id} style={{ borderTop: '1px solid var(--brd)', padding: '12px 0' }}>
