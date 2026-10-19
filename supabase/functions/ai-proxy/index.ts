@@ -14,6 +14,8 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { json, preflight, requireUser, planAllowsAI, AuthError } from "../_shared/http.ts";
 import { buildPrompt } from "../_shared/prompts.ts";
+import { DESK_LIMITS, planAllowsDeskAgent } from "../_shared/deskAgent.js";
+import { handleDeskAgent } from "./desk.ts";
 
 const MODEL = "claude-haiku-4-5-20251001";
 const HARD_TOKEN_CAP = 4000;
@@ -58,6 +60,39 @@ Deno.serve(async (req: Request) => {
   }
 
   const task = String(body.task || "");
+
+  // The desk agent calls tools over this user's rows. One rate-limit row
+  // covers the whole turn, including the tool loop. Sending email is refused
+  // inside the handler and never becomes a tool.
+  if (task === "desk_agent") {
+    if (!planAllowsDeskAgent(profile)) {
+      return json(req, {
+        error: "This feature is on the Pro plan and above.",
+        upgrade: "pro",
+      }, 402);
+    }
+    const { data: rate, error: rateErr } = await supabase.rpc("record_ai_call", {
+      p_user_id: profile.id,
+      p_task: task,
+      p_limit_minute: DESK_LIMITS.perMinute,
+      p_limit_day: DESK_LIMITS.perDay,
+    });
+    if (rateErr) {
+      console.error("record_ai_call failed:", rateErr.message);
+      return json(req, { error: "Usage tracking unavailable, try again shortly.", fallback: true }, 503);
+    }
+    if (rate && rate.allowed === false) {
+      return json(req, {
+        error: rate.reason === "minute"
+          ? "You're going a bit fast — wait a moment and try again."
+          : "Daily AI limit reached. It resets at midnight UTC.",
+        retryAfter: rate.retry_after_seconds ?? 60,
+        fallback: true,
+      }, 429);
+    }
+    return handleDeskAgent(req, supabase, profile, body.params || {}, anthropicKey);
+  }
+
   const spec = buildPrompt(task, body.params || {});
   if (!spec) {
     return json(req, { error: `Unknown task: ${task || "(none)"}` }, 400);

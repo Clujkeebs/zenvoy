@@ -71,6 +71,46 @@ export async function aiTask(task, params = {}, attempt = 0) {
   return data.text || ''
 }
 
+/**
+ * One turn of Ask your desk. The server loads the user's leads, runs the
+ * model with tools, and returns text that has already been checked for
+ * citations. This does not retry: a failure should fall back to the local
+ * desk rather than spend another call.
+ */
+export async function askDesk(message, history = []) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token
+  if (!token) throw new Error('Your session expired — sign in again.')
+
+  let res
+  try {
+    res = await fetch(AI_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token,
+      },
+      body: JSON.stringify({ task: 'desk_agent', params: { message, history } }),
+    })
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Request cancelled.')
+    const err = new Error('Network error — check your internet connection.')
+    err.fallback = true
+    throw err
+  }
+
+  const data = await res.json().catch(() => ({}))
+  if (res.status === 402) {
+    throw new UpgradeRequiredError(data?.error || 'This feature needs a paid plan.', data?.upgrade)
+  }
+  if (!res.ok) {
+    const err = new Error(data?.error || 'AI service error ' + res.status)
+    err.fallback = true
+    throw err
+  }
+  return data
+}
+
 /* ── Lead generation ─────────────────────────────────────────────────────
  *
  * Pipeline:
