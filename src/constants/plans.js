@@ -48,7 +48,9 @@ const _isOwner = u => u?.role === "owner"
 
 export const canAI          = u => _isOwner(u) || ["pro","scale","enterprise"].includes(u?.plan)
 export const canScale       = u => _isOwner(u) || ["scale","enterprise"].includes(u?.plan)
-export const canMulti       = u => _isOwner(u) || ["pro","scale","enterprise"].includes(u?.plan)
+// Growth and above advertise every country. The flag on the plan is the
+// source of truth — a hardcoded list had drifted and locked Growth out.
+export const canMulti       = u => _isOwner(u) || !!PLANS[u?.plan]?.multiCountry
 export const getLeadsPerScan = u => _isOwner(u) ? 9999 : (PLANS[u?.plan]?.leadsPerScan || 5)
 
 /**

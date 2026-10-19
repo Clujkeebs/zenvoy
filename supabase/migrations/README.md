@@ -2,22 +2,33 @@
 
 ## Read this before connecting the GitHub integration
 
-The production database is at project `tyhhtbtxdwxjcziwmrpx` and has **33
-migrations applied**. This directory contains only the three that were written
-as files; the other 30 were applied directly and exist only in the database's
-`supabase_migrations.schema_migrations` table.
+The production database is project `tyhhtbtxdwxjcziwmrpx`. On 19 Oct 2026 it
+had **37** versions in `supabase_migrations.schema_migrations`. Most of those
+were applied from the SQL editor and have no file in this directory. Supabase
+skips a version that is already recorded, so a filename has to match the live
+version or the next `db push` will run it again as a new migration.
 
-That is safe for **deploying migrations on push**, because Supabase skips any
-version already recorded as applied. The filenames here deliberately match the
-recorded versions:
-
-| File | Recorded in DB |
+| File | Live database |
 |---|---|
-| `20260730222009_security_hardening.sql` | ✅ `security_hardening` |
-| `20260731173419_freelancer_workflow_features.sql` | ✅ `freelancer_workflow_features` |
-| `20260801023428_track_billing_period.sql` | ✅ `track_billing_period` |
+| `20260730222009_security_hardening.sql` | Applied |
+| `20260731173419_freelancer_workflow_features.sql` | Applied |
+| `20260801023428_track_billing_period.sql` | Applied |
+| `20260801030250_lock_down_function_execute_grants.sql` | Applied. The file used to be named `20260801041500_…`. It was renamed to the live version so it is not applied a second time. |
+| `20260801040000_drop_aimediabot_schemas.sql` | **Not applied. Do not apply it.** It `DROP SCHEMA`s `aimediabot` and `analytics`. When it was written, `aimediabot.config` had **6 rows**. On 19 Oct 2026 those schemas were already absent from `pg_namespace` (their create migrations are still recorded), so they were removed outside this file. Leave the file. Do not delete it and do not run it. |
+| `20261019024229_proof_desk_watch.sql` | Applied. The file used to be named `20261019020000_…`. It was renamed to the live version. |
+| `20261019030653_harden_proofs_access.sql` | Applied. The file used to be named `20261019024658_…`. It was renamed to the live version. |
 
-⚠️ Never rename these. The version prefix is what stops them being re-applied.
+Live version `20260801145756_local_benchmark` is recorded and has **no file**
+here. Do not invent one.
+
+### Do not `supabase db push` yet
+
+Push applies every file whose version is missing, oldest first. The only
+unrecorded file left is `20260801040000_drop_aimediabot_schemas.sql`. Do not
+push until a human has decided what to do with that drop.
+
+⚠️ Never rename an applied file to a version that is not already in
+`schema_migrations`. The version prefix is what stops a re-run.
 
 ## Branching is NOT safe yet
 

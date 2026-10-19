@@ -83,12 +83,14 @@ export function identify(userId, traits = {}) {
     plan: traits.plan || 'free',
     country: traits.country || '',
   })
-  gtag('config', 'G-ZENVYLO001', { user_id: userId })
+  const gaId = import.meta.env.VITE_GA_MEASUREMENT_ID
+  if (gaId) gtag('config', gaId, { user_id: userId })
 }
 
 // ── Preset Events (typed helpers) ────────────────────────
 
 export const Analytics = {
+  track,
   // Auth
   signupStarted:    (method = 'email')    => track('signup_started',    { method }),
   signupCompleted:  (plan, country)       => track('signup_completed',  { plan, country }),

@@ -28,6 +28,13 @@ import EnterprisePage from './components/pages/EnterprisePage'
 import SupportPage from './components/pages/SupportPage'
 import AdminDashboard from './components/admin/AdminDashboard'
 import AffiliateDashboard from './components/affiliate/AffiliateDashboard'
+import ProofPage from './components/proof/ProofPage'
+import CookieNotice from './components/layout/CookieNotice'
+import { SAMPLE_USER, SAMPLE_LEADS, SAMPLE_CLIENTS } from './fixtures/sampleDesk'
+
+function isProofPath(path = window.location.pathname) {
+  return path.replace(/^\/+|\/+$/g, '').split('/')[0] === 'proof'
+}
 
 const I = Icon
 
@@ -55,12 +62,19 @@ export default function App() {
   const [upgradeFor,  setUpgradeFor]  = useState(null)
   const [showMore,    setShowMore]    = useState(false)
   const [loading,     setLoading]     = useState(true)
+  const [proof,       setProof]       = useState(() => isProofPath())
   const toastTimer = useRef(null)
 
   const showToast = useCallback(msg => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
     setToast(msg)
     toastTimer.current = setTimeout(() => setToast(null), 2800)
+  }, [])
+
+  useEffect(() => {
+    const onPop = () => setProof(isProofPath())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   // ─── Load session on mount (async) ───────────────────
@@ -204,6 +218,15 @@ export default function App() {
     if (!u.onboarded) setShowBoard(true)
   }, [])
 
+  const startPreview = useCallback(() => {
+    setUser(SAMPLE_USER)
+    setLeads(SAMPLE_LEADS)
+    setClients(SAMPLE_CLIENTS)
+    setAuthMode(null)
+    setLoading(false)
+    setTab('home')
+  }, [])
+
   const logout = useCallback(async () => {
     Analytics.logoutCompleted()
     await DB.clearSession()
@@ -315,7 +338,7 @@ export default function App() {
 
   const NAV = useMemo(() => {
     const items = [
-      { id: "home",         icon: "home",      label: "Home" },
+      { id: "home",         icon: "home",      label: "Today" },
       { id: "leads",        icon: "target",    label: "Leads" + (leads.length ? " (" + leads.length + ")" : "") },
       { id: "clients",      icon: "users",     label: "Clients" + (clients.length ? " (" + clients.length + ")" : "") },
       { id: "tools",        icon: "tool",      label: "Tools" },
@@ -334,6 +357,8 @@ export default function App() {
   const moreActive = ["clients","analytics","history","subscription","settings","enterprise","support","admin"].includes(tab)
 
   // ─── Loading state ───────────────────────────────────
+  if (proof) return (<><ProofPage /><CookieNotice /></>)
+
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
       <div style={{ textAlign: "center" }}>
@@ -346,8 +371,9 @@ export default function App() {
   // ─── Not logged in ───────────────────────────────────
   if (!user) return (
     <>
-      <LandingPage onSignup={() => setAuthMode("signup")} onLogin={() => setAuthMode("login")} />
+      <LandingPage onSignup={() => setAuthMode("signup")} onLogin={() => setAuthMode("login")} onPreview={startPreview} />
       {authMode && <AuthModal mode={authMode} onAuth={auth} onClose={() => setAuthMode(null)} />}
+      <CookieNotice />
     </>
   )
 
@@ -441,12 +467,16 @@ export default function App() {
             </div>
           </div>
           <button className="nav-btn" onClick={logout} style={{ fontSize: 12 }}><I n="logout" s={13} />Sign Out</button>
+          <div style={{ display: "flex", gap: 10, padding: "6px 10px", fontSize: 11 }}>
+            <a href="/legal/terms.html">Terms</a>
+            <a href="/legal/privacy.html">Privacy</a>
+          </div>
         </div>
       </aside>
 
       <main className="app-main">
         <div key={tab} className="fu" style={{ minHeight: "100%", animationDuration: ".18s" }}>
-        {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} />}
+        {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} onUpdateLead={updLead} />}
         {tab === "leads"        && <LeadsPage user={user} leads={leads} onUpdate={updLead} onDelete={delLead} onImported={addLeads} onSearch={openSearch} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "clients"      && <ClientsPage clients={clients} leads={leads} onAdd={addClient} onUpdate={updClient} onDelete={delClient} onNav={setTab} />}
         {tab === "tools"        && <ToolsPage user={user} onUpgrade={handleUpgrade} onNav={setTab} />}
@@ -523,6 +553,7 @@ export default function App() {
       {showBoard && <OnboardOverlay onDone={doneBoard} />}
       {upgradeFor && <UpgradeModal feature={upgradeFor.feature} requiredPlan={upgradeFor.plan} onClose={() => setUpgradeFor(null)} onGoSettings={() => { setTab("settings"); setUpgradeFor(null) }} />}
       <Toast msg={toast} />
+      <CookieNotice />
       </div>
     </>
   )

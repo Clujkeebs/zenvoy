@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy — Zenvylo</title>
+  <meta name="description" content="What Zenvylo stores about you, about the businesses you scan, and about the public websites it fetches." />
+  <link rel="canonical" href="https://zenvylo.app/legal/privacy.html" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:title" content="Privacy Policy — Zenvylo" />
+  <meta property="og:url" content="https://zenvylo.app/legal/privacy.html" />
+  <meta property="og:type" content="article" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560&family=Outfit:wght@400;600&display=swap" />
+  <link rel="stylesheet" href="/site.css" />
+</head>
+<body>
+<nav class="topnav"><a class="logo" href="/"><span class="stamp">Z</span> Zenvylo</a>
+  <div class="nav-links"><a href="/legal/terms.html">Terms</a><a class="btn-lime" href="/">Open app</a></div>
+</nav>
+<main class="legal">
+  <p class="proof-kicker">Legal · draft</p>
+  <h1>Privacy Policy</h1>
+  <p>Last updated 19 October 2026. The legal entity is a placeholder. A human should review this before you treat it as final.</p>
+  <p>The controller is <span class="placeholder">[LEGAL ENTITY NAME]</span>, <span class="placeholder">[LEGAL ENTITY ADDRESS]</span>. Contact: support@zenvylo.app. The product runs at zenvylo.app.</p>
+
+  <h2>Account data</h2>
+  <p>When you sign up we store your email, name, country, the service you picked, and plan information. Sign-in uses a magic link from our authentication provider (Supabase). We do not ask for a password.</p>
+
+  <h2>What you save in the app</h2>
+  <p>Leads, notes, follow-up dates, pipeline stage, imported CSV rows, and client records are stored so you can come back to them. That is the point of the product. You can delete leads from the app.</p>
+
+  <h2>Businesses and websites</h2>
+  <p>Scans ask OpenStreetMap for public place data: names, categories, coordinates, phone numbers and website fields that people have contributed to the map. We then fetch the website URL, the same way a browser would, and store the checks (HTTPS, response time, and so on). We do not log into anyone’s site and we do not collect private customer lists from those businesses.</p>
+  <p>A proof link you copy contains those checks. Anyone you send it to can read them. Do not put a person’s private note into a proof page — the proof builder only includes measurements and the issues derived from them.</p>
+
+  <h2>AI drafts</h2>
+  <p>On plans that include writing tools, the measurements and the business name are sent to an AI provider (Anthropic) to draft text. Do not put secrets into notes you then send to those tools. The draft is stored in your browser until you leave the card, and the request is logged on our side for rate limits (time and token counts, not the full letter).</p>
+
+  <h2>Payments</h2>
+  <p>Subscriptions are processed by Stripe. We store the plan, the customer id, and the subscription status. We do not store full card numbers.</p>
+
+  <h2>Analytics</h2>
+  <p>The hosted app may use Vercel Web Analytics, which is designed to count visits without cookies. Google Analytics loads only if you click Accept on the cookie notice and a measurement ID has been configured. Until then, that script is not added. Your choice is stored in local storage on your device.</p>
+
+  <h2>How long and who else sees it</h2>
+  <p>We keep account and lead data while the account exists, and for a short period after deletion so backups can expire. Processors include Supabase (database and sign-in), Stripe (payments), Anthropic (optional drafting), Vercel (hosting and optional analytics), and OpenStreetMap / Overpass (place search, which receives the place you typed). We do not sell your account data.</p>
+
+  <h2>Your rights</h2>
+  <p>Depending on where you live, you can ask for a copy of your data, a correction, or deletion. Email support@zenvylo.app. If you are in the UK or EEA you can also complain to your data protection authority. We do not knowingly sign up children. The product is for people who can enter a contract for freelance work.</p>
+</main>
+<footer>
+  <a href="/legal/terms.html">Terms</a>
+  <a href="/legal/cookies.html">Cookies</a>
+  <span>© 2026 Zenvylo</span>
+</footer>
+<script src="/cookie.js"></script>
+</body>
+</html>

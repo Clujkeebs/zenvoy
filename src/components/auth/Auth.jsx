@@ -271,8 +271,8 @@ export default function Auth({ onAuth, initialMode = "login" }) {
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--txt3)" }}>
           {mode === "signup"
-            ? "By signing up you agree to our Terms & Privacy."
-            : "Free forever · 3 scans/month"}
+            ? <>By signing up you agree to the <a href="/legal/terms.html" style={{ textDecoration: "underline" }}>Terms</a> and <a href="/legal/privacy.html" style={{ textDecoration: "underline" }}>Privacy Policy</a>.</>
+            : "Free plan · 3 scans/month"}
         </p>
       </div>
 

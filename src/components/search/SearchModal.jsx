@@ -41,6 +41,10 @@ export default function SearchModal({ user, onClose, onDone, onUpgrade }) {
   const say = msg => setLog(p => [...p, msg])
 
   const run = async () => {
+    if (user?.sample) {
+      setErr('This is the sample desk. Sign up to scan real businesses — measurement runs on the server, not in the browser.')
+      return
+    }
     if (!country) { setErr('Select a country first.'); return }
     if (!serviceReady) { setErr('Pick a service, or type what you sell.'); return }
     if (!isOwner && scansLeft <= 0) {

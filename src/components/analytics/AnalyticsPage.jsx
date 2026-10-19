@@ -20,8 +20,9 @@ export default function AnalyticsPage({ leads, clients, onNav }) {
   const won=leads.filter(l=>l.status==="won");
   const totalMRR=leads.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
   const wonMRR=won.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
-  const avgScore=Math.round(leads.reduce((a,l)=>a+l.score,0)/leads.length);
-  const avgDemand=Math.round(leads.reduce((a,l)=>a+(l.demandScore||50),0)/leads.length);
+  const avgScore=Math.round(leads.reduce((a,l)=>a+(l.score||0),0)/leads.length);
+  const avgIssues=Math.round(leads.reduce((a,l)=>a+(l.findings?.length||0),0)/leads.length);
+  const hasSaturation=leads.some(l => l.marketSaturation);
   const conv=leads.length?Math.round(won.length/leads.length*100):0;
   const mrr=clients.filter(c=>c.status==="active").reduce((a,c)=>a+Number(c.monthly||0),0);
   const satColors={underserved:"var(--green)",competitive:"var(--amber)",saturated:"var(--red)"};
@@ -43,7 +44,7 @@ export default function AnalyticsPage({ leads, clients, onNav }) {
           {l:"Potential MRR",v:"$"+totalMRR.toLocaleString(),c:"var(--lime)"},
           {l:"Won MRR",v:"$"+wonMRR.toLocaleString(),c:"var(--green)"},
           {l:"Avg Opp Score",v:avgScore,c:"var(--amber)"},
-          {l:"Avg Demand",v:avgDemand,c:"var(--blue)"},
+          {l:"Avg measured issues",v:avgIssues,c:"var(--blue)"},
           {l:"Win Rate",v:conv+"%",c:"var(--purple)"},
           {l:"Active Client MRR",v:"$"+mrr.toLocaleString(),c:"var(--teal)"},
         ].map((k,i)=>(
@@ -53,7 +54,7 @@ export default function AnalyticsPage({ leads, clients, onNav }) {
           </div>
         ))}
       </div>
-      <div className="card" style={{ padding:19,marginBottom:12 }}>
+      {hasSaturation && <div className="card" style={{ padding:19,marginBottom:12 }}>
         <div style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:14,marginBottom:13,display:"flex",gap:7,alignItems:"center" }}>
           <I n="compass" s={14} c="var(--teal)"/>Market Saturation
         </div>
@@ -72,7 +73,7 @@ export default function AnalyticsPage({ leads, clients, onNav }) {
             );
           })}
         </div>
-      </div>
+      </div>}
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12 }}>
         {[
           {title:"By Status",icon:"trending",color:"var(--amber)",data:Object.entries(byStatus).sort((a,b)=>b[1]-a[1]),label:([s])=>s.charAt(0).toUpperCase()+s.slice(1)},

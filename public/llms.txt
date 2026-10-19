@@ -1,67 +1,73 @@
 # Zenvylo
 
-> A lead-finding tool for freelancers and small agencies who sell digital
-> services to local businesses. It finds real businesses near a chosen
-> location, fetches and measures each one's website, and ranks them by
-> verified, checkable problems — not by guesswork.
+> A lead desk for freelancers and small agencies who sell digital services to
+> local businesses. It finds real businesses, measures their public websites,
+> remembers the measurements, and tells you what changed. Each prospect can
+> have a proof page the business owner can open and check.
 
-## What makes it different
+The site is https://zenvylo.app.
 
-Most lead tools return a list of names and a plausible-sounding score. Zenvylo
-fetches every prospect's website and records what is actually there: whether
-HTTPS is present, whether the page is mobile-ready, how long it took to
-respond, whether it has a page title and search description, tap-to-call,
-a contact form, online booking, analytics, structured data, and how stale the
-content is.
+## What a chatbot cannot do
 
-Every issue shown to the user quotes the measurement behind it, so a freelancer
-can put it in a cold email and the business owner can verify it. Nothing is
-inferred. The tool refuses to state revenue estimates, traffic figures or
-competitor claims it has not measured.
+A chat assistant can draft a cold email from a description you paste in.
+Zenvylo does three things that require a product, not a conversation:
 
-It also compares a prospect against its nearest same-category neighbours —
-measured the same way — so the pitch can be "five of the six nearest cafés have
-online booking and you don't" rather than a generic complaint.
+1. It fetches the website and records what is there: HTTPS, mobile viewport,
+   response time, title, search description, tap-to-call, contact form,
+   booking link, analytics, structured data, footer year, and whether the
+   page loaded at all.
+2. It stores that measurement on the lead. A later re-check diffs the two
+   fetches and lists what changed, citing both observations.
+3. It builds a proof page. The link contains the measurements. The code on
+   the page is a hash of them. Editing the link makes the code stop matching.
+
+Scores are computed in code from those checks, weighted for the service you
+sell. Outreach drafts, on paid plans, are told to cite only those checks.
+The product refuses to state revenue, traffic, or competitor claims it has
+not measured.
+
+Neighbour comparisons use the same measurement on nearby businesses of the
+same OpenStreetMap category.
 
 ## Who it's for
 
-- Freelance web designers, SEO consultants, social media managers
-- Small agencies doing local outreach
-- Anyone selling a digital service to bricks-and-mortar businesses
+Freelance web designers, SEO consultants, and small agencies doing local
+outreach. Anyone selling a digital service to bricks-and-mortar businesses.
 
 ## How it works
 
-1. Pick what you sell (twelve presets, or type your own service).
+1. Pick what you sell (twelve presets, or type your own).
 2. Pick a country and optionally a city.
-3. Zenvylo pulls real businesses from OpenStreetMap for that area.
-4. It fetches and measures each business's website.
-5. Findings and a 0–100 score are computed in code from those measurements,
-   weighted for the service being sold.
-6. Claude writes the outreach, citing only the verified findings.
+3. Zenvylo pulls businesses from OpenStreetMap. Listings are
+   © OpenStreetMap contributors, ODbL.
+4. It fetches and measures each website.
+5. Findings and a 0–100 score are computed from those measurements.
+6. You keep the leads in a pipeline, set follow-up dates, and re-check them.
+7. On Pro and above, Claude can draft outreach from the verified findings.
 
-You can also import an existing prospect list from CSV, which costs no scans
-and runs the same measurement pipeline.
+CSV import costs no scans and runs the same measurement pipeline.
 
 ## Pricing
 
 - Free — 3 scans/month, 5 leads per scan
 - Starter, $9/mo — 20 scans/month
-- Growth, $19/mo — 50 scans/month, all countries, choose 1–8 leads per scan
-- Pro, $39/mo — 100 scans/month, AI outreach and proposals, 1–10 leads per scan
-- Scale, $79/mo — 200 scans/month, 1–15 leads per scan
-- Enterprise — contact support@zenvylo.com
+- Growth, $19/mo — 50 scans/month, all countries
+- Pro, $39/mo — 100 scans/month, AI drafts that cite measurements
+- Scale, $79/mo — 200 scans/month
+- Enterprise — contact hello@zenvylo.app
 
-## Key pages
+## Pages
 
-- Home: https://zenvylo.com/
-- Blog: https://zenvylo.com/blog/
-- How to find freelance clients: https://zenvylo.com/blog/how-to-find-freelance-clients.html
-- AI lead generation guide: https://zenvylo.com/blog/ai-lead-generation-for-freelancers.html
-- Cold email templates: https://zenvylo.com/blog/cold-email-templates-freelancers.html
-- Freelance pricing guide: https://zenvylo.com/blog/freelance-pricing-guide.html
-- Best freelance niches: https://zenvylo.com/blog/best-freelance-niches-2025.html
-- Getting web design clients: https://zenvylo.com/blog/how-to-get-web-design-clients.html
+- Home: https://zenvylo.app/
+- Blog: https://zenvylo.app/blog/
+- Why measured audits beat chatbots: https://zenvylo.app/blog/why-measured-audits-beat-chatbots.html
+- How to send a proof page: https://zenvylo.app/blog/how-to-send-a-proof-page.html
+- Re-check saved prospects: https://zenvylo.app/blog/recheck-saved-prospects.html
+- How to find freelance clients: https://zenvylo.app/blog/how-to-find-freelance-clients.html
+- Terms: https://zenvylo.app/legal/terms.html
+- Privacy: https://zenvylo.app/legal/privacy.html
 
 ## Contact
 
-support@zenvylo.com
+hello@zenvylo.app
+support@zenvylo.app

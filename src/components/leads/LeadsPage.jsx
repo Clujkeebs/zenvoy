@@ -19,6 +19,7 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported,
   const [showCmp,   setShowCmp]   = useState(false);
   const [bulkDate,  setBulkDate]  = useState("");
   const [showImport,setShowImport]= useState(false);
+  const [view, setView] = useState('list');
 
   /* Bulk actions. At 40+ leads, updating status one card at a time is the
      single most tedious thing in the app — this makes a scan's worth of
@@ -56,6 +57,9 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported,
             <I n="plus" s={14}/>Import list
           </button>
           {leads.length>0 && <button className="btn btn-ghost" onClick={()=>csvExport(leads)}><I n="download" s={14}/>Export CSV</button>}
+          <button className={"btn "+(view==="board"?"btn-lime":"btn-ghost")} onClick={()=>setView(view==="board"?"list":"board")}>
+            <I n="layers" s={14}/>{view==="board"?"List":"Pipeline"}
+          </button>
           <button className="btn btn-lime" onClick={onSearch}><I n="search" s={14}/>New Search</button>
         </div>
       </div>
@@ -136,7 +140,26 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported,
         </div>
       )}
 
-      {leads.length===0
+      {view==="board" && leads.length>0
+        ? <div className="pipeline" aria-label="Pipeline">
+            {STATUSES.map(st => {
+              const col = leads.filter(l => (l.status || 'new') === st);
+              return (
+                <div key={st} className="pipeline-col">
+                  <div style={{ fontSize:12, fontWeight:700, textTransform:'capitalize' }}>{st} · {col.length}</div>
+                  {col.length===0 && <p style={{ fontSize:12, color:'var(--txt3)', marginTop:10 }}>Empty</p>}
+                  {col.map(l => (
+                    <button key={l.id} className="pipeline-card" onClick={() => { setView('list'); setStatus(st); setOpenId(l.id); }}>
+                      <div style={{ fontWeight:650, fontSize:14 }}>{l.name}</div>
+                      <div style={{ fontSize:12, color:'var(--txt2)', marginTop:3 }}>{l.btype || l.serviceLabel}</div>
+                      <div style={{ fontSize:12, marginTop:6 }}>Score {l.score ?? '—'} · {(l.findings||[]).length} measured issue{(l.findings||[]).length===1?'':'s'}</div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        : leads.length===0
         ? <div className="empty-state">
             <div className="empty-icon"><I n="target" s={32} c="var(--lime)"/></div>
             <h3 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:20 }}>No leads yet</h3>
