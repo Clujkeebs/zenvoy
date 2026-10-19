@@ -234,6 +234,21 @@ export async function auditSites(urls) {
   }
 }
 
+/**
+ * Store a signed proof so it can be fetched by code later.
+ * The shareable link does not depend on this — it already contains the document.
+ * Failure is non-fatal (the table may not be migrated yet).
+ */
+export async function saveProof(id, business, payload) {
+  const userId = await getUserId()
+  if (!userId || !id) return { error: 'Not signed in' }
+  const { error } = await supabase.from('proofs').upsert({
+    id, user_id: userId, business, payload,
+  })
+  if (error) console.warn('saveProof:', error.message)
+  return { error: error?.message || null }
+}
+
 /** Re-measure a single lead's site and persist it against the lead. */
 export async function auditSite(url, leadId) {
   const { measurement } = await callFunction('audit-site', { url, leadId })
@@ -326,9 +341,10 @@ const LEAD_COLS = new Set([
   'competition_score', 'difficulty_rating', 'market_saturation', 'country', 'city',
   'service_id', 'service_label', 'service_custom', 'status', 'saved', 'notes',
   'follow_up_date', 'user_id', 'site_measurement', 'findings', 'audited_at',
-  'osm_id', 'lat', 'lon', 'benchmark', 'benchmarked_at',
+  'osm_id', 'lat', 'lon', 'osm_tag_key', 'osm_tag_value', 'benchmark', 'benchmarked_at',
   'contacted_at', 'won_value', 'outreach_step', 'last_contact_at',
   'outreach_log', 'lost_reason', 'closed_at',
+  'watch_log', 'last_watch_at', 'watch_seen_at',
 ])
 
 export async function insertLeads(leads) {

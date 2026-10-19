@@ -16,6 +16,7 @@ recorded versions:
 | `20260730222009_security_hardening.sql` | ✅ `security_hardening` |
 | `20260731173419_freelancer_workflow_features.sql` | ✅ `freelancer_workflow_features` |
 | `20260801023428_track_billing_period.sql` | ✅ `track_billing_period` |
+| `20261019020000_proof_desk_watch.sql` | ❌ not applied — review first |
 
 ⚠️ Never rename these. The version prefix is what stops them being re-applied.
 

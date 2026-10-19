@@ -2,7 +2,7 @@
 
 /**
  * Allowed browser origins. Set ALLOWED_ORIGINS to a comma-separated list in
- * production (e.g. "https://zenvylo.com,https://www.zenvylo.com").
+ * production (e.g. "https://zenvylo.app,https://www.zenvylo.app").
  * Falls back to "*" only when unset, so local dev keeps working.
  */
 function allowedOrigins(): string[] {

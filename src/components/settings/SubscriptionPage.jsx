@@ -81,7 +81,7 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
           then drop to Free automatically.
         </p>
         <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
-          Email <a href="mailto:support@zenvylo.com" style={{ color: "var(--lime)", fontWeight: 700 }}>support@zenvylo.com</a> and
+          Email <a href="mailto:support@zenvylo.app" style={{ color: "var(--lime)", fontWeight: 700 }}>support@zenvylo.app</a> and
           we'll cancel it for you the same day.
         </p>
         <button className="btn btn-ghost" onClick={() => setShowCancel(false)}>
@@ -101,8 +101,8 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
         <p style={{ color: "var(--txt2)", fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
           For enterprise access, contact us at
         </p>
-        <a href="mailto:support@zenvylo.com" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
-          support@zenvylo.com
+        <a href="mailto:support@zenvylo.app" style={{ fontSize: 18, fontWeight: 700, color: "var(--amber)", textDecoration: "none" }}>
+          support@zenvylo.app
         </a>
         <div style={{ marginTop: 24 }}>
           <button className="btn btn-ghost" onClick={() => setShowEnterprise(false)}>
@@ -221,7 +221,7 @@ export default function SubscriptionPage({ user, onUpdate, onNav }) {
       <div className="card" style={{ padding: "16px 20px", background: "rgba(61,142,248,.04)", border: "1.5px solid rgba(61,142,248,.15)" }}>
         <div style={{ fontSize: 13, color: "var(--blue)", fontWeight: 700, marginBottom: 4 }}>All plans include:</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(180px,100%),1fr))", gap: 6 }}>
-          {["Lead deduplication — your leads are exclusive", "Profitability calculator", "Scan history & analytics", "Mobile-friendly dashboard"].map(f => (
+          {["Measured website checks on every lead", "Profitability calculator", "Scan history & analytics", "Mobile-friendly dashboard"].map(f => (
             <div key={f} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: 12, color: "var(--txt2)" }}>
               <I n="check" s={11} c="var(--blue)" style={{ marginTop: 1, flexShrink: 0 }} />{f}
             </div>

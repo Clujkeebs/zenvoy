@@ -84,7 +84,7 @@ async function safeFetch(startUrl: URL): Promise<{ res: Response; finalUrl: URL;
       redirect: "manual",
       headers: {
         // Identify honestly. Some hosts block unknown agents outright.
-        "User-Agent": "ZenvyloBot/1.0 (+https://zenvylo.com/bot; web presence audit)",
+        "User-Agent": "ZenvyloBot/1.0 (+https://zenvylo.app/bot; web presence audit)",
         "Accept": "text/html,application/xhtml+xml",
         "Accept-Language": "en",
       },

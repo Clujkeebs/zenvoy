@@ -79,13 +79,13 @@ export default function AffiliateDashboard({ user }) {
         ))}
       </div>
       <div style={{ fontSize: 13, color: "var(--txt3)" }}>
-        Contact <a href="mailto:hello@zenvylo.com" style={{ color: "var(--blue)" }}>hello@zenvylo.com</a> with your channel to apply.
+        Contact <a href="mailto:hello@zenvylo.app" style={{ color: "var(--blue)" }}>hello@zenvylo.app</a> with your channel to apply.
       </div>
     </div>
   )
 
   // ── Shared promo-link card ───────────────────────────────
-  const refLink = `https://www.zenvylo.app?ref=${aff.promoCode}`
+  const refLink = `https://zenvylo.app?ref=${aff.promoCode}`
 
   const PromoCard = () => (
     <div className="card" style={{ padding: "16px 18px", marginBottom: 14 }}>
@@ -287,7 +287,7 @@ export default function AffiliateDashboard({ user }) {
           </div>
         ) : (
           <div style={{ fontSize: 12, color: "var(--amber)", padding: "8px 11px", background: "rgba(255,177,0,.06)", borderRadius: 7, border: "1px solid rgba(255,177,0,.2)" }}>
-            <I n="alert" s={11} c="var(--amber)" /> No payment method on file. Email <a href="mailto:hello@zenvylo.com" style={{ color: "var(--blue)" }}>hello@zenvylo.com</a> to set up payouts.
+            <I n="alert" s={11} c="var(--amber)" /> No payment method on file. Email <a href="mailto:hello@zenvylo.app" style={{ color: "var(--blue)" }}>hello@zenvylo.app</a> to set up payouts.
           </div>
         )}
         {aff.lastPayoutAt && (

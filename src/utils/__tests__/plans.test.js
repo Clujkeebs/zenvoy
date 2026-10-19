@@ -54,6 +54,13 @@ describe('feature gates', () => {
     expect(canAI({ plan: 'scale' })).toBe(true)
   })
 
+  it('follows the multi-country flag on the plan', () => {
+    expect(canMulti({ plan: 'free' })).toBe(false)
+    expect(canMulti({ plan: 'starter' })).toBe(false)
+    expect(canMulti({ plan: 'growth' })).toBe(true)
+    expect(canMulti({ plan: 'pro' })).toBe(true)
+  })
+
   it('gives the owner everything', () => {
     const owner = { role: 'owner', plan: 'free' }
     expect(canAI(owner)).toBe(true)

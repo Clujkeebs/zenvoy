@@ -1,6 +1,9 @@
 # Netlify redirects
-# Blog static pages — serve as-is (no redirect needed, they're real files)
-/blog/*   /blog/:splat  200
+/blog/best-freelance-niches-2025.html  /blog/best-freelance-niches.html  301
 
-# SPA fallback — everything else goes to the React app
+# Static sections — serve the files
+/blog/*    /blog/:splat    200
+/legal/*   /legal/:splat   200
+
+# SPA fallback — app routes, including /proof
 /*  /index.html  200

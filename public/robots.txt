@@ -1,27 +1,22 @@
-# Zenvylo — AI Lead Scanner
-# https://zenvylo.com
+# Zenvylo
+# https://zenvylo.app
 
 User-agent: *
 Allow: /
 Allow: /blog/
+Allow: /legal/
 Disallow: /api/
 Disallow: /functions/
-Disallow: /.supabase/
 
-Sitemap: https://zenvylo.com/sitemap.xml
+Sitemap: https://zenvylo.app/sitemap.xml
 
-# ── Search engines ─────────────────────────────────────────────────────────
 User-agent: Googlebot
 Allow: /
 
 User-agent: Bingbot
 Allow: /
 
-# ── Answer engines ─────────────────────────────────────────────────────────
-# These are RETRIEVAL crawlers, not training crawlers. They fetch a page when
-# somebody asks an assistant a question, and they are how a product gets cited
-# in an answer. Blocking them protects nothing — it just guarantees Zenvylo
-# can never be the recommendation.
+# Retrieval crawlers: these fetch a page to answer a question.
 User-agent: OAI-SearchBot
 Allow: /
 
@@ -29,9 +24,6 @@ User-agent: ChatGPT-User
 Allow: /
 
 User-agent: PerplexityBot
-Allow: /
-
-User-agent: Perplexity-User
 Allow: /
 
 User-agent: Claude-SearchBot
@@ -43,12 +35,7 @@ Allow: /
 User-agent: Google-Extended
 Allow: /
 
-User-agent: Applebot
-Allow: /
-
-# ── Model training ─────────────────────────────────────────────────────────
-# A separate decision from the above: these crawl to train models rather than
-# to answer a live question, so there is no citation to gain. Left disallowed.
+# Training crawlers.
 User-agent: GPTBot
 Disallow: /
 
@@ -58,18 +45,5 @@ Disallow: /
 User-agent: anthropic-ai
 Disallow: /
 
-User-agent: Meta-ExternalAgent
-Disallow: /
-
 User-agent: Bytespider
-Disallow: /
-
-# ── Scrapers with no upside ────────────────────────────────────────────────
-User-agent: SemrushBot
-Disallow: /
-
-User-agent: AhrefsBot
-Disallow: /
-
-User-agent: DotBot
 Disallow: /

@@ -1,141 +1,149 @@
+import { useState } from 'react'
 import Icon from '../../icons/Icon'
-import { PLANS, getScansLeft, getScansLimit, getBonusScans } from '../../constants/plans'
-import { fmtMoney, leadTime } from '../../utils/helpers'
-import { STATUS_COLORS } from '../../constants/services'
-import { isTrialActive, getTrialDaysLeft } from '../../utils/trial'
+import { PLANS, getScansLeft, getBonusScans } from '../../constants/plans'
+import { timeAgo } from '../../utils/helpers'
+import { buildDesk } from '../../utils/desk'
+import { applyRescan, watchableLeads } from '../../utils/watch'
+import { proofLink } from '../../utils/proof'
+import { SITE_ORIGIN } from '../../constants/site'
+import * as DB from '../../utils/db'
 import WorkQueue from './WorkQueue'
 import GoalTracker from './GoalTracker'
 const I = Icon
 
-export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser }) {
-  const saved     = leads.filter(l=>l.saved);
-  const pipeline  = leads.filter(l=>["contacted","interested","proposal sent","negotiating"].includes(l.status));
-  const won       = leads.filter(l=>l.status==="won");
-  const pipeVal   = pipeline.reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
-  const wonVal    = won.reduce((a,l)=>a+(l.wonValue||l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
-  const totalMRR  = leads.reduce((a,l)=>a+(l.status!=="lost"?(l.myMonthlyRate||l.suggestedMonthlyRate||0):0),0);
-  const recent    = [...leads].sort((a,b)=>leadTime(b)-leadTime(a)).slice(0,6);
-  const scansLeft = getScansLeft(user) + getBonusScans(user);
-  const onTrial   = isTrialActive(user);
-  const plan      = PLANS[user.plan]||PLANS.starter;
+export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser, onUpdateLead }) {
+  const desk = buildDesk(leads)
+  const scansLeft = getScansLeft(user) + getBonusScans(user)
+  const plan = PLANS[user.plan] || PLANS.free
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+  const [copied, setCopied] = useState('')
+
+  const recheck = async () => {
+    if (user.sample) {
+      setNote('This is the sample desk. Re-checking a live site needs your account and the measurement server.')
+      return
+    }
+    const targets = watchableLeads(leads).slice(0, 5)
+    if (!targets.length) {
+      setNote('Save a lead with a website first. Re-checks compare that site to the last measurement.')
+      return
+    }
+    setBusy(true)
+    setNote(`Checking ${targets.length} saved site${targets.length === 1 ? '' : 's'}…`)
+    let changed = 0
+    for (const lead of targets) {
+      try {
+        const measurement = await DB.auditSite(lead.website, lead.id)
+        const next = applyRescan(lead, measurement)
+        if ((next.watchLog || []).length > (lead.watchLog || []).length) changed += 1
+        onUpdateLead(next)
+      } catch (e) {
+        setNote(e.message || 'A site could not be re-checked.')
+      }
+    }
+    setBusy(false)
+    setNote(changed
+      ? `${changed} site${changed === 1 ? '' : 's'} changed since the last check.`
+      : 'Checked. Nothing measurable changed on those sites.')
+  }
+
+  const copyProof = async (lead) => {
+    try {
+      const { url } = await proofLink(lead, user.name, window.location.origin || SITE_ORIGIN)
+      await navigator.clipboard.writeText(url)
+      if (!user.sample) DB.saveProof(lead.id, lead.name, { url })
+      setCopied(lead.id)
+      setTimeout(() => setCopied(''), 2000)
+    } catch {
+      setNote('Could not copy a proof link from this browser.')
+    }
+  }
 
   return (
-    <div style={{overflowX:"hidden",minWidth:0}}>
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22,flexWrap:"wrap",gap:12 }}>
-        <div>
-          <h1 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:28,letterSpacing:"-.02em" }}>
-            Welcome back, {user.name.split(" ")[0]} 👋
-          </h1>
-          <p style={{ color:"var(--txt2)",fontSize:14,marginTop:4 }}>
-            {plan.name} plan · {scansLeft} scan{scansLeft!==1?"s":""} left this month
-            {onTrial && <span style={{ marginLeft:8,color:"var(--purple)",fontWeight:700 }}>· Trial: {getTrialDaysLeft(user)} days left</span>}
-          </p>
-        </div>
-        <button className="btn btn-lime" style={{ fontSize:15,padding:"12px 24px" }} onClick={onSearch}>
-          <I n="search" s={16}/>Find New Leads
-        </button>
-      </div>
-
-      {onTrial && (
-        <div className="trial-banner fu" style={{ marginBottom:16 }}>
-          <I n="crown" s={16} c="var(--purple)"/>
-          <span style={{ color:"var(--txt)",fontWeight:600 }}>Pro Trial Active</span>
-          <span style={{ color:"var(--txt2)" }}> — {getTrialDaysLeft(user)} days left. Full access to AI tools and all countries.</span>
-          <button className="btn btn-ghost" style={{ marginLeft:"auto",fontSize:12,padding:"4px 10px" }} onClick={()=>onNav("settings")}>
-            Upgrade to keep access →
-          </button>
+    <div>
+      {user.sample && (
+        <div className="sample-banner">
+          Sample desk. Harbour Coffee, Loom & Dye and Pike Plumbing are examples, not live scans. Sign up to measure real businesses.
         </div>
       )}
 
-      {/* Scan pill */}
-      <div style={{ display:"inline-flex",alignItems:"center",gap:10,padding:"9px 16px",
-        background:"var(--s2)",border:"1.5px solid "+(scansLeft===0?"rgba(245,66,66,.4)":scansLeft<=2?"rgba(245,166,35,.3)":"var(--brd)"),
-        borderRadius:30,marginBottom:22 }}>
-        <I n="zap" s={13} c={scansLeft===0?"var(--red)":scansLeft<=2?"var(--amber)":"var(--lime)"}/>
-        <span style={{ fontSize:13,fontWeight:700,color:scansLeft===0?"var(--red)":scansLeft<=2?"var(--amber)":"var(--txt)" }}>
-          {scansLeft} scan{scansLeft!==1?"s":""} remaining
-        </span>
-        <div style={{ width:60,height:4,borderRadius:2,background:"var(--s3)",overflow:"hidden" }}>
-          <div style={{ height:"100%",borderRadius:2,background:scansLeft===0?"var(--red)":scansLeft<=2?"var(--amber)":"var(--lime)",
-            width:((scansLeft/getScansLimit(user))*100)+"%" }}/>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
+        <div>
+          <p className="proof-kicker" style={{ color: 'var(--signal)', marginBottom: 6 }}>Today</p>
+          <h1 style={{ fontSize: 'clamp(32px, 4vw, 44px)' }}>
+            {user.name?.split(' ')[0] || 'Hello'}, here is the desk.
+          </h1>
+          <p style={{ color: 'var(--txt2)', marginTop: 6, fontSize: 14 }}>
+            {plan.name} · {Number.isFinite(scansLeft) ? `${scansLeft} scan${scansLeft === 1 ? '' : 's'} left` : 'Unlimited scans'}
+            {clients.length ? ` · ${clients.length} client${clients.length === 1 ? '' : 's'}` : ''}
+          </p>
         </div>
-        {scansLeft===0 && <button style={{ fontSize:11,color:"var(--blue)",fontWeight:700,cursor:"pointer",background:"none",border:"none" }}
-          onClick={()=>onNav("settings")}>Upgrade now →</button>}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <button className="btn btn-ghost" onClick={recheck} disabled={busy}>
+            <I n="refresh" s={14} />{busy ? 'Checking…' : 'Re-check saved'}
+          </button>
+          <button className="btn btn-lime" onClick={onSearch}><I n="search" s={14} />New scan</button>
+        </div>
       </div>
+
+      {note && <p style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>{note}</p>}
+
+      <section className="card" style={{ padding: 16, marginBottom: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+          <h2 style={{ fontSize: 26 }}>What changed</h2>
+          <span style={{ fontSize: 12, color: 'var(--txt3)' }}>{desk.watching} site{desk.watching === 1 ? '' : 's'} on watch</span>
+        </div>
+        {desk.changes.length === 0 ? (
+          <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 8, lineHeight: 1.5 }}>
+            Nothing new since you last looked. Re-check saved prospects after a week — a site that fixed HTTPS, or one that went down, changes the email you should send.
+          </p>
+        ) : desk.changes.map(item => (
+          <article key={item.lead.id} style={{ borderTop: '1px solid var(--brd)', padding: '12px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <strong>{item.lead.name}</strong>
+              <span style={{ fontSize: 12, color: 'var(--txt3)' }}>{item.at ? timeAgo(item.at) : ''}</span>
+            </div>
+            <ul style={{ margin: '6px 0 8px', paddingLeft: 18, color: 'var(--txt2)', fontSize: 14 }}>
+              {item.changes.slice(0, 4).map(c => (
+                <li key={c.key + c.label}><span style={{ color: c.direction === 'broke' ? 'var(--red)' : c.direction === 'fixed' ? 'var(--green)' : 'var(--txt)' }}>{c.label}.</span> {c.detail}</li>
+              ))}
+            </ul>
+            <button className="btn btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}
+              onClick={() => onUpdateLead({ ...item.lead, watchSeenAt: new Date().toISOString() })}>
+              Mark seen
+            </button>
+          </article>
+        ))}
+      </section>
+
+      <section style={{ marginBottom: 14 }}>
+        <h2 style={{ fontSize: 26, marginBottom: 8 }}>Best leads not contacted</h2>
+        {desk.fresh.length === 0 ? (
+          <p style={{ color: 'var(--txt2)', fontSize: 14 }}>No untouched leads. Run a scan or import a list.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {desk.fresh.map(l => (
+              <div key={l.id} className="card" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: 650 }}>{l.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--txt2)' }}>{l.findings?.[0]?.evidence || l.why || 'No measurement yet'}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--fh)', fontSize: 22 }}>{l.score ?? '—'}</span>
+                  <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => copyProof(l)}>
+                    {copied === l.id ? 'Copied' : 'Proof link'}
+                  </button>
+                  <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => onNav('leads')}>Open</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <GoalTracker user={user} leads={leads} onUpdate={onUpdateUser} onSearch={onSearch} />
-
       <WorkQueue leads={leads} onNav={onNav} onSearch={onSearch} />
-
-      {/* Stats */}
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10,marginBottom:20 }}>
-        {[
-          { l:"Total Leads",    v:leads.length,    icon:"target",   c:"var(--lime)",   to:"leads" },
-          { l:"Saved",          v:saved.length,    icon:"save",     c:"var(--blue)",   to:"leads" },
-          { l:"In Pipeline",    v:pipeline.length, icon:"trending", c:"var(--amber)",  to:"leads", sub:fmtMoney(pipeVal)+" /mo" },
-          { l:"Deals Won",      v:won.length,      icon:"check",    c:"var(--green)",  to:"leads", sub:fmtMoney(wonVal)+" /mo" },
-          { l:"Clients",        v:clients.length,  icon:"users",    c:"var(--purple)", to:"clients" },
-          { l:"Potential MRR",  v:"$"+totalMRR.toLocaleString(), icon:"dollar", c:"var(--teal)", sub:"from active leads" },
-        ].map((s,i)=>(
-          <div key={i} className="card card-h fu" style={{ padding:"15px 17px",cursor:s.to?"pointer":"default",animationDelay:i*0.05+"s" }}
-            onClick={s.to?()=>onNav(s.to):undefined}>
-            <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:8 }}>
-              <div style={{ width:28,height:28,borderRadius:8,background:s.c+"14",display:"flex",alignItems:"center",justifyContent:"center" }}>
-                <I n={s.icon} s={13} c={s.c}/>
-              </div>
-              <span style={{ fontSize:11,color:"var(--txt2)" }}>{s.l}</span>
-            </div>
-            <div style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:22,color:s.c }}>{s.v}</div>
-            {s.sub && <div style={{ fontSize:10,color:"var(--txt3)",marginTop:2 }}>{s.sub}</div>}
-          </div>
-        ))}
-      </div>
-
-      {/* Pipeline + Recent */}
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(260px,100%),1fr))",gap:12,marginBottom:12 }}>
-        <div className="card" style={{ padding:19 }}>
-          <div style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:14,marginBottom:13,display:"flex",gap:7,alignItems:"center" }}>
-            <I n="trending" s={14} c="var(--amber)"/>Deal Pipeline
-          </div>
-          {["contacted","interested","proposal sent","negotiating","won","lost"].map(st=>{
-            const cnt=leads.filter(l=>l.status===st).length;
-            const val=leads.filter(l=>l.status===st).reduce((a,l)=>a+(l.myMonthlyRate||l.suggestedMonthlyRate||0),0);
-            return (
-              <div key={st} style={{ marginBottom:8 }}>
-                <div style={{ display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3 }}>
-                  <span style={{ color:"var(--txt2)" }}>{st.charAt(0).toUpperCase()+st.slice(1)}</span>
-                  <span style={{ fontWeight:600 }}>{cnt}{val>0&&<span style={{ color:"var(--txt3)",fontWeight:400 }}> · ${val.toLocaleString()}/mo</span>}</span>
-                </div>
-                <div className="prog">
-                  <div className="prog-fill" style={{ width:(leads.length?(cnt/leads.length)*100:0)+"%",
-                    background:st==="won"?"var(--green)":st==="lost"?"var(--red)":"var(--amber)" }}/>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="card" style={{ padding:19 }}>
-          <div style={{ fontFamily:"var(--fh)",fontWeight:800,fontSize:14,marginBottom:13,display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-            <div style={{ display:"flex",gap:7,alignItems:"center" }}><I n="clock" s={14} c="var(--blue)"/>Recent Leads</div>
-            {leads.length>6 && <button className="btn btn-ghost" style={{ fontSize:11,padding:"4px 9px" }} onClick={()=>onNav("leads")}>View all</button>}
-          </div>
-          {recent.length===0
-            ? <div style={{ color:"var(--txt3)",fontSize:13,textAlign:"center",padding:"20px 0" }}>Run a search to see leads here.</div>
-            : recent.map(l=>(
-              <div key={l.id} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid var(--brd)" }}>
-                <div>
-                  <div style={{ fontWeight:600,fontSize:13 }}>{l.name}</div>
-                  <div style={{ fontSize:11,color:"var(--txt3)" }}>{l.serviceLabel}</div>
-                </div>
-                <div style={{ display:"flex",gap:5,alignItems:"center" }}>
-                  <span style={{ fontSize:12,fontWeight:700,color:"var(--green)" }}>${(l.myMonthlyRate||l.suggestedMonthlyRate||0).toLocaleString()}/mo</span>
-                  <span className={"chip "+(STATUS_COLORS[l.status]||"c-gray")} style={{ fontSize:10 }}>{l.status}</span>
-                </div>
-              </div>
-            ))
-          }
-        </div>
-      </div>
     </div>
-  );
+  )
 }

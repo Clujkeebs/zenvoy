@@ -4,6 +4,9 @@ import { STATUS_COLORS, STATUSES } from '../../constants/services'
 import { scoreColor, timeAgo } from '../../utils/helpers'
 import { opportunityLabel } from '../../utils/evidence'
 import { compareToPeers, benchmarkSummary } from '../../utils/benchmark'
+import { applyRescan } from '../../utils/watch'
+import { proofLink } from '../../utils/proof'
+import { SITE_ORIGIN } from '../../constants/site'
 import { recordTouch, undoTouch, outreachSummary, currentStep, nextStep, closeDeal, LOST_REASONS, MAX_STEP } from '../../utils/outreach'
 import AuditReport from './AuditReport'
 import * as DB from '../../utils/db'
@@ -87,17 +90,22 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
     setReBusy(true); setReErr("");
     try {
       const measurement = await DB.auditSite(lead.website, lead.id);
-      const { deriveFindings, scoreFindings } = await import('../../utils/evidence');
-      const all = deriveFindings(lead, measurement);
-      const { score, findings: scored } = scoreFindings(all, lead.serviceId);
-      onUpdate({ ...lead, siteMeasurement: measurement, findings: scored, score,
-                 auditedAt: measurement.measuredAt, ssl: measurement.https ?? lead.ssl,
-                 speed: measurement.responseMs ?? lead.speed,
-                 problems: scored.slice(0,5).map(f=>f.label) });
+      onUpdate(applyRescan(lead, measurement));
     } catch (e) {
       setReErr(e.message || "Couldn't re-check that site.");
     }
     setReBusy(false);
+  };
+  const shareProof = async () => {
+    try {
+      const { url, code } = await proofLink(lead, userName, window.location.origin || SITE_ORIGIN);
+      await navigator.clipboard.writeText(url);
+      DB.saveProof(code, lead.name, { name: lead.name });
+      setCopied("proof");
+      setTimeout(() => setCopied(""), 2000);
+    } catch (e) {
+      setReErr(e.message || "Couldn't build a proof link.");
+    }
   };
   const upd = ch => onUpdate({ ...lead, ...ch });
 
@@ -215,12 +223,17 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
                   </div>
                 </div>
               </div>
-              {lead.website && (
-                <button className="btn btn-ghost" style={{ fontSize:11, padding:"5px 10px" }}
-                  disabled={reBusy} onClick={reAudit}>
-                  <I n="refresh" s={11}/>{reBusy?"Checking…":"Re-check site"}
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                <button className="btn btn-ghost" style={{ fontSize:11, padding:"5px 10px" }} onClick={shareProof}>
+                  <I n="link" s={11}/>{copied==="proof"?"Link copied":"Proof link"}
                 </button>
-              )}
+                {lead.website && (
+                  <button className="btn btn-ghost" style={{ fontSize:11, padding:"5px 10px" }}
+                    disabled={reBusy} onClick={reAudit}>
+                    <I n="refresh" s={11}/>{reBusy?"Checking…":"Re-check site"}
+                  </button>
+                )}
+              </div>
             </div>
 
             {reErr && (
