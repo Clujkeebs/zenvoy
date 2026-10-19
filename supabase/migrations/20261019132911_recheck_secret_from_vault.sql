@@ -1,4 +1,7 @@
--- NOT APPLIED. Review, then run. Do not apply from this change.
+-- APPLIED on the live database as version 20261019132911.
+-- This file used to be named 20261019142000_recheck_secret_from_vault.sql.
+-- The rename matches schema_migrations so push does not run it again.
+-- Do not edit the statements below.
 --
 -- recheck-saved and daily-digest already compare x-recheck-secret to the
 -- RECHECK_CRON_SECRET env var. The same value is stored in Vault as
