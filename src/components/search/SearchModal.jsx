@@ -8,11 +8,11 @@ import * as DB from '../../utils/db'
 import Analytics from '../../utils/analytics'
 const I = Icon
 
-export default function SearchModal({ user, onClose, onDone, onUpgrade }) {
+export default function SearchModal({ user, onClose, onDone, onUpgrade, initialCity = '' }) {
   const [svc,       setSvc]       = useState(user.svc || 'web')
   const [customSvc, setCustomSvc] = useState('')
   const [country,   setCountry]   = useState(canMulti(user) ? '' : (user.country || 'United Kingdom'))
-  const [city,      setCity]      = useState('')
+  const [city,      setCity]      = useState(initialCity)
   const leadCap = getLeadCap(user)
   const [leadCount, setLeadCount] = useState(() => {
     const saved = Number(localStorage.getItem('zv_lead_count'))

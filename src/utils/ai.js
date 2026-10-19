@@ -94,6 +94,7 @@ const AUDIT_CAP = 24
 export async function generateLeads({
   service, customService, country, city, existingNames = [],
   lowBudget, count = 5, maxCount = 25, onProgress = () => {},
+  prefer = null, keep = null,
 }) {
   // The caller picks the count, but a tampered client shouldn't be able to ask
   // for a thousand — every result costs a fetch and a measurement.
@@ -113,8 +114,12 @@ export async function generateLeads({
     )
   }
 
+  // Prefer a named type first, then fill with the rest of the map results.
+  const ordered = typeof prefer === 'function'
+    ? [...filtered.filter(prefer), ...filtered.filter(b => !prefer(b))]
+    : filtered
   // Audit more than we need so scoring has something to choose between.
-  const workSet = filtered.slice(0, Math.min(Math.max(count * 3, count + 6), AUDIT_CAP))
+  const workSet = ordered.slice(0, Math.min(Math.max(count * 3, count + 6), AUDIT_CAP))
   onProgress(`Found ${filtered.length} businesses — checking ${workSet.length} websites…`)
 
   /* ── 2. Measure their websites ──────────────────────── */
@@ -139,9 +144,14 @@ export async function generateLeads({
     return { business: b, measurement, findings, allFindings: all, score }
   })
 
+  const ranked = typeof keep === 'function' ? analysed.filter(keep) : analysed
   // Best prospects first — most verified, most relevant problems.
-  analysed.sort((a, b) => b.score - a.score)
-  const chosen = analysed.slice(0, count)
+  ranked.sort((a, b) => b.score - a.score)
+  const chosen = ranked.slice(0, count)
+  if (!chosen.length) {
+    onProgress('None of the measured sites matched that filter.')
+    return []
+  }
 
   onProgress('Ranking by verified issues…')
 
@@ -171,9 +181,15 @@ export async function generateLeads({
 
   return chosen.map((c, i) => {
     const a = analysis.find(x => x?.i === i) ?? analysis[i] ?? {}
-    const { business: b, measurement, findings, score } = c
+    const { business: b, measurement, findings, allFindings, score } = c
+    const cited = findings.slice()
+    if (typeof keep === 'function') {
+      for (const f of allFindings || []) {
+        if (!cited.some(x => x.id === f.id) && keep({ findings: [f] })) cited.push(f)
+      }
+    }
 
-    const suggested = clampInt(a.suggestedMonthlyRate, 200, 25_000, defaultRate(findings.length))
+    const suggested = clampInt(a.suggestedMonthlyRate, 200, 25_000, defaultRate(cited.length))
     const tools = clampInt(a.toolsCostMonthly, 0, 5_000, 90)
     const setup = clampInt(a.setupCost, 0, 20_000, 250)
 
@@ -197,14 +213,14 @@ export async function generateLeads({
       ssl: measurement?.https ?? (b.website ? b.ssl : false),
       speed: measurement?.responseMs ?? null,
       siteMeasurement: measurement,
-      findings,
+      findings: cited,
       auditedAt: measurement ? measurement.measuredAt : null,
       score,
 
       /* ── Written by Claude, grounded in the above ─ */
-      why: a.why || fallbackWhy(b, findings),
+      why: a.why || fallbackWhy(b, cited),
       // `problems` is the legacy column the UI and CSV already read.
-      problems: findings.slice(0, 5).map(f => f.label),
+      problems: cited.slice(0, 5).map(f => f.label),
       suggestedMonthlyRate: suggested,
       myMonthlyRate: suggested,
       toolsCostMonthly: tools,
@@ -322,4 +338,7 @@ export const genInvoice = params => aiTask('invoice', params)
 export const genObjectionHandler = params => aiTask('objection', params)
 export const genNicheIdeas = params => aiTask('niche', params)
 export const genOnboardingKit = params => aiTask('onboarding_kit', params)
+
+/** Rewrite a draft that was already built from measurements. Pro and above. */
+export const polishDraft = params => aiTask('desk_draft', params)
 export const genRateAdvice = params => aiTask('rate_calc', params)

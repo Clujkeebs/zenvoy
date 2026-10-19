@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 48">
+  <g transform="translate(4 8) scale(1)">
+    <svg width="32" height="32" viewBox="0 0 32 32">
+      <rect width="32" height="32" rx="7" fill="#12110e"/>
+      <path fill="#f3ecdf" d="M6 7h12l6 6v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>
+      <path fill="#e4d8c4" d="M18 7v5h6z"/>
+      <path stroke="#12110e" stroke-width="1.6" stroke-linecap="round" d="M10 16h8M10 19.5h6"/>
+      <circle cx="22" cy="22" r="7" fill="#e23d28"/>
+      <path d="M18.4 22.1l2.1 2.1 4.4-4.6" fill="none" stroke="#fffaf3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </g>
+  <text x="48" y="32" fill="#12110e" font-family="Fraunces, Georgia, serif" font-size="28">Zenvylo</text>
+</svg>

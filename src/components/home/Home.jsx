@@ -3,6 +3,7 @@ import Icon from '../../icons/Icon'
 import { PLANS, getScansLeft, getBonusScans } from '../../constants/plans'
 import { timeAgo } from '../../utils/helpers'
 import { buildDesk } from '../../utils/desk'
+import { nextActions, buildDigest } from '../../utils/agent'
 import { applyRescan, watchableLeads } from '../../utils/watch'
 import { proofLink } from '../../utils/proof'
 import { SITE_ORIGIN } from '../../constants/site'
@@ -13,6 +14,8 @@ const I = Icon
 
 export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUser, onUpdateLead }) {
   const desk = buildDesk(leads)
+  const actions = nextActions(leads)
+  const digest = buildDigest(leads)
   const scansLeft = getScansLeft(user) + getBonusScans(user)
   const plan = PLANS[user.plan] || PLANS.free
   const [busy, setBusy] = useState(false)
@@ -88,6 +91,25 @@ export default function Home({ user, leads, clients, onSearch, onNav, onUpdateUs
       </div>
 
       {note && <p style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>{note}</p>}
+
+      <section className="card" style={{ padding: 16, marginBottom: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          <h2 style={{ fontSize: 26 }}>Next</h2>
+          <button className="btn btn-ghost" type="button" style={{ fontSize: 12 }} onClick={() => onNav('agent')}>Open the agent</button>
+        </div>
+        <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 6 }}>{digest.summary}</p>
+        {actions.length === 0 ? (
+          <p style={{ color: 'var(--txt2)', fontSize: 14, marginTop: 8 }}>Nothing to do yet. Run a scan, or give the agent a goal.</p>
+        ) : (
+          <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+            {actions.slice(0, 3).map(a => (
+              <li key={a.id} style={{ margin: '6px 0', fontSize: 14 }}>
+                <strong>{a.title}.</strong> {a.reason}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="card" style={{ padding: 16, marginBottom: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>

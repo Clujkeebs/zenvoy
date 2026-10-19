@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Icon from '../../icons/Icon'
 import { PLANS, PLAN_ORDER } from '../../constants/plans'
 import { SITE_ORIGIN, HELLO_EMAIL, OSM_ATTRIBUTION } from '../../constants/site'
+import Logo from '../brand/Logo'
 import Analytics from '../../utils/analytics'
 const I = Icon
 
@@ -60,9 +61,8 @@ export default function LandingPage({ onSignup, onLogin, onPreview }) {
       )}
 
       <nav className={'land-nav' + (scrolled ? ' land-nav-scrolled' : '')} aria-label="Main">
-        <a href={SITE_ORIGIN} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'inherit' }}>
-          <span className="stamp">Z</span>
-          <span className="wordmark">Zenvylo</span>
+        <a href={SITE_ORIGIN} style={{ color: 'inherit' }}>
+          <Logo variant="on-light" size={32} />
         </a>
         <div className="land-nav-links">
           <a className="land-nav-link" href="#how">How it works</a>
@@ -88,7 +88,7 @@ export default function LandingPage({ onSignup, onLogin, onPreview }) {
                 Send the proof.<br />Not a guess.
               </h1>
               <p style={{ fontSize: 18, lineHeight: 1.55, color: 'var(--txt2)', maxWidth: 520, marginBottom: 22 }}>
-                Zenvylo finds real nearby businesses, measures their websites, and keeps the result. When something changes — the site goes down, booking appears, HTTPS shows up — you see it. Each prospect gets a page the owner can open and check.
+                Zenvylo finds real nearby businesses, measures their websites, and keeps the result. When something changes — the site goes down, booking appears, HTTPS shows up — you see it. Give the desk a goal, like dentists in one city with no booking link, and it keeps only the sites the check confirms. Each prospect gets a page the owner can open and check.
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button className="btn btn-lime btn-xl" onClick={() => go('hero')}>Start with 3 free scans</button>
@@ -193,7 +193,7 @@ export default function LandingPage({ onSignup, onLogin, onPreview }) {
 
       <footer style={{ padding: '28px 24px 40px', maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--txt3)' }}>
         <div>
-          <div className="wordmark" style={{ color: 'var(--txt)', fontSize: 18 }}>Zenvylo</div>
+          <Logo variant="on-light" size={24} />
           <p style={{ maxWidth: 420, marginTop: 8, lineHeight: 1.5 }}>{OSM_ATTRIBUTION}</p>
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>

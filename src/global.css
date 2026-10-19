@@ -122,7 +122,7 @@ h1,h2,h3,h4{word-break:break-word;overflow-wrap:break-word}
 /* ── APP SHELL (desktop) ────────────────────────────────── */
 .app-shell{display:flex;height:100vh;width:100%;overflow:hidden;position:relative}
 .app-sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--s1);border-right:1.5px solid var(--brd);display:flex;flex-direction:column;padding:14px 10px;height:100vh;overflow-y:auto;overflow-x:hidden;transition:width .2s}
-.app-main{flex:1;min-width:0;padding:26px 28px;overflow-y:auto;overflow-x:hidden;height:100vh;max-width:100%}.app-main>*{min-width:0;max-width:100%}
+.app-main{flex:1;min-width:0;padding:26px 28px 140px;overflow-y:auto;overflow-x:hidden;height:100vh;max-width:100%}.app-main>*{min-width:0;max-width:100%}
 
 /* ── BOTTOM NAV (mobile only) ───────────────────────────── */
 .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--s1);border-top:1.5px solid var(--brd);padding:0 0 env(safe-area-inset-bottom);min-height:var(--bottom-nav-h);align-items:stretch;justify-content:space-around;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
@@ -144,7 +144,7 @@ h1,h2,h3,h4{word-break:break-word;overflow-wrap:break-word}
   .app-sidebar .scan-detail{display:none}
   .app-main{padding:18px 16px;overflow-x:hidden}
   .nav-btn{padding:10px;justify-content:center}
-  .sidebar-logo-text{display:none}
+  .sidebar-logo-text,.app-sidebar .wordmark{display:none}
   .sidebar-scan-pill{display:none}
   .sidebar-search-btn span{display:none}
   .sidebar-user-name{display:none}
@@ -154,7 +154,7 @@ h1,h2,h3,h4{word-break:break-word;overflow-wrap:break-word}
 /* ── MOBILE (<480px) — bottom nav layout ────────────────── */
 @media(max-width:480px){
   .app-sidebar{display:none}
-  .app-main{padding:14px 14px calc(80px + env(safe-area-inset-bottom));height:100vh}
+  .app-main{padding:14px 14px calc(150px + env(safe-area-inset-bottom));height:100vh}
   .bottom-nav{display:flex}
   .mob-fab{display:flex}
   .empty-state{padding:50px 20px}
@@ -175,6 +175,9 @@ h1,h2,h3,h4{word-break:break-word;overflow-wrap:break-word}
   min-height:100vh;
 }
 .pub .wordmark{font-family:var(--fh);font-weight:560;font-size:22px;letter-spacing:-.03em}
+.logo-lockup{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:inherit}
+.logo-lockup .wordmark{font-family:var(--fh);font-weight:560;font-size:22px;letter-spacing:-.03em;line-height:1}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .pub .stamp{
   width:28px;height:28px;border-radius:8px;background:var(--signal);color:#fffaf3;
   display:inline-flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:12px;font-weight:600;
@@ -193,6 +196,9 @@ h1,h2,h3,h4{word-break:break-word;overflow-wrap:break-word}
   background:var(--s1);color:var(--txt);border:1px solid var(--brd2);
   border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;
   box-shadow:var(--sh-lg);max-width:720px;margin:0 auto;
+}
+@media(max-width:480px){
+  .cookie-bar{bottom:calc(78px + env(safe-area-inset-bottom));left:10px;right:10px}
 }
 .sample-banner{background:rgba(255,90,54,.12);border:1px solid rgba(255,90,54,.35);color:var(--txt);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:14px}
 

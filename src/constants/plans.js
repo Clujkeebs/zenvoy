@@ -19,7 +19,7 @@ export const PLANS = {
   pro: {
     id:"pro", name:"Pro", price:39, scans:100, leadsPerScan:10, ai:true, multiCountry:true,
     trialDays:7, color:"var(--lime)", best:true,
-    features:["100 scans/month","10 leads per scan","All countries","AI outreach & proposals","Full analytics","7-day free trial"],
+    features:["100 scans/month","10 leads per scan","All countries","AI outreach & proposals","Model rewrite of drafts you approve","Full analytics","7-day free trial"],
   },
   scale: {
     id:"scale", name:"Scale", price:79, scans:200, leadsPerScan:15, ai:true, multiCountry:true,

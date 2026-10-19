@@ -3,6 +3,7 @@ import Icon from '../../icons/Icon'
 import { COUNTRIES } from '../../constants/services'
 import * as DB from '../../utils/db'
 import { getDefaultRole } from '../../utils/roles'
+import Logo from '../brand/Logo'
 const I = Icon
 
 /** Read a referral code off the current URL, uppercased. */
@@ -93,16 +94,8 @@ export default function Auth({ onAuth, initialMode = "login" }) {
 
         {/* Brand */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 9, marginBottom: 28 }}>
-            <div style={{
-              width: 36, height: 36, background: "var(--lime)", borderRadius: 10,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <I n="target" s={19} c="#0a0c11" />
-            </div>
-            <span style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 24, letterSpacing: "-.035em" }}>
-              Zen<span style={{ color: "var(--lime)" }}>vylo</span>
-            </span>
+          <a href="/" style={{ display: "inline-flex", marginBottom: 28 }}>
+            <Logo variant="on-dark" size={36} />
           </a>
           <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", marginBottom: 8, lineHeight: 1.1 }}>
             {sent
