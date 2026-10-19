@@ -47,6 +47,7 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
   const [showCostTip,  setShowCostTip]  = useState(false);
   const [myRate,       setMyRate]       = useState(String(lead.myMonthlyRate || lead.suggestedMonthlyRate || ""));
   const [copied,       setCopied]       = useState("");
+  const [proofUrl,     setProofUrl]     = useState("");
 
   const findings = lead.findings || [];
   const opp = opportunityLabel(lead.score, findings.length);
@@ -99,10 +100,15 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
   const shareProof = async () => {
     try {
       const { url, code } = await proofLink(lead, userName, window.location.origin || SITE_ORIGIN, { ownerId });
-      await navigator.clipboard.writeText(url);
-      DB.saveProof(code, lead.name, { name: lead.name });
-      setCopied("proof");
-      setTimeout(() => setCopied(""), 2000);
+      setProofUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied("proof");
+        setTimeout(() => setCopied(""), 2000);
+      } catch {
+        setReErr("Copy the link below. This browser blocked the clipboard.");
+      }
+      if (ownerId) DB.saveProof(code, lead.name, { name: lead.name });
     } catch (e) {
       setReErr(e.message || "Couldn't build a proof link.");
     }
@@ -238,6 +244,12 @@ const LeadCard = memo(function LeadCard({ lead, onUpdate, onDelete, userName, us
 
             {reErr && (
               <div style={{ fontSize:11, color:"var(--red)", marginBottom:8 }}>{reErr}</div>
+            )}
+            {proofUrl && (
+              <label style={{ display:"block", margin:"8px 0" }}>
+                <span style={{ fontSize:11, color:"var(--txt3)" }}>Paste this to the business. They can open it with no account.</span>
+                <input readOnly className="inp" value={proofUrl} aria-label="Proof link" onFocus={e => e.target.select()} style={{ marginTop:4, fontSize:12 }} />
+              </label>
             )}
 
             {findings.map(f=>(

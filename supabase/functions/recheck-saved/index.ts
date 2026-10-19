@@ -16,17 +16,9 @@ import { json, preflight } from "../_shared/http.ts";
 import { measureSite } from "../_shared/measure.ts";
 import { pickRecheckBatch, RECHECK_STALE_MS } from "../_shared/recheckQueue.js";
 import { applyRescan } from "../../../src/utils/watch.js";
+import { secretsMatch } from "../_shared/cronAuth.js";
 
 const CANDIDATES = 40;
-
-function secretsMatch(got: string, expected: string): boolean {
-  const a = new TextEncoder().encode(got);
-  const b = new TextEncoder().encode(expected);
-  if (a.length < 16 || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-  return diff === 0;
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return preflight(req);

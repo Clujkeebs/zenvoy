@@ -15,3 +15,9 @@ verify_jwt = false
 # The function checks the proof hash itself.
 [functions.audit-interest]
 verify_jwt = false
+
+# Stripe calls this. It cannot send a user JWT.
+# The function rejects any body whose Stripe signature does not match.
+# This does not change prices or plans.
+[functions.stripe-webhook]
+verify_jwt = false

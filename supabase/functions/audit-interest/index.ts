@@ -12,25 +12,13 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { json, preflight } from "../_shared/http.ts";
 import { decodeProof, verifyProof } from "../../../src/utils/proof.js";
+import { readInterestRequest } from "../_shared/interestRequest.js";
+import { emailFreelancer } from "../_shared/mail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY_MS = 86_400_000;
 const PER_OWNER = 20;
 const PER_CODE = 5;
-
-async function emailFreelancer(to: string, subject: string, text: string): Promise<void> {
-  const key = Deno.env.get("RESEND_API_KEY") || "";
-  const from = Deno.env.get("DIGEST_FROM") || "";
-  if (!key || !from || !to) return;
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to: [to], subject, text }),
-  });
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return preflight(req);
@@ -43,10 +31,9 @@ Deno.serve(async (req: Request) => {
     return json(req, { error: "Body must be JSON" }, 400);
   }
 
-  const token = typeof body.token === "string" ? body.token : "";
-  const fromName = typeof body.fromName === "string" ? body.fromName.trim().slice(0, 80) : "";
-  const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
-  if (!fromName) return json(req, { error: "Add your name." }, 400);
+  const interest = readInterestRequest(body);
+  if (!interest.ok) return json(req, { error: interest.error }, interest.status);
+  const { token, fromName, note } = interest;
 
   const doc = decodeProof(token);
   if (!doc) return json(req, { error: "This link is not a report." }, 400);
@@ -119,7 +106,13 @@ Deno.serve(async (req: Request) => {
 
   if (profile.digest_opt_in && profile.email) {
     const text = `${bodyText}\n\nThis note is for you. It was not sent to any business.`;
-    await emailFreelancer(profile.email, `Zenvylo desk — ${fromName} asked about ${businessName}`, text);
+    await emailFreelancer({
+      to: profile.email,
+      subject: `Zenvylo desk — ${fromName} asked about ${businessName}`,
+      text,
+      key: Deno.env.get("RESEND_API_KEY") || "",
+      from: Deno.env.get("DIGEST_FROM") || "",
+    });
   }
 
   return json(req, { ok: true });

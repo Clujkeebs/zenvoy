@@ -6,11 +6,12 @@ import Logo from '../brand/Logo'
  * First run: pick a service and a place, then open a real scan.
  * The old tutorial claimed the score mixed demand and competition. It does not.
  */
-export default function OnboardOverlay({ onDone }) {
+export default function OnboardOverlay({ onDone, initialSvc = 'web', initialCountry = 'United Kingdom', preview = false }) {
   const [step, setStep] = useState(0)
-  const [svc, setSvc] = useState('web')
-  const [country, setCountry] = useState('United Kingdom')
+  const [svc, setSvc] = useState(initialSvc || 'web')
+  const [country, setCountry] = useState(initialCountry || 'United Kingdom')
   const [city, setCity] = useState('')
+  const cityHint = country === 'United Kingdom' ? 'Leeds' : 'City'
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(18,17,14,.72)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -33,22 +34,33 @@ export default function OnboardOverlay({ onDone }) {
           <>
             <h2 id="onboard-title" style={{ fontSize: 28, margin: '16px 0 8px' }}>Where should the first scan look?</h2>
             <p style={{ color: 'var(--txt2)', fontSize: 14, lineHeight: 1.5 }}>
-              One scan finds businesses on the map and measures the websites it can reach. You get a proof link for each saved lead.
+              {preview
+                ? 'A new account starts here. The sample desk already has example businesses, so this preview does not run a scan.'
+                : 'One scan finds businesses on the map and measures the websites it can reach. Then you open a lead and choose Proof link.'}
             </p>
             <label htmlFor="onboard-country" style={{ display: 'block', marginTop: 12, fontSize: 13 }}>Country</label>
             <select id="onboard-country" className="inp" value={country} onChange={e => setCountry(e.target.value)} style={{ width: '100%' }}>
               {COUNTRIES.map(c => <option key={c}>{c}</option>)}
             </select>
             <label htmlFor="onboard-city" style={{ display: 'block', marginTop: 12, fontSize: 13 }}>City</label>
-            <input id="onboard-city" className="inp" value={city} onChange={e => setCity(e.target.value)} placeholder="Austin" style={{ width: '100%' }} />
-            <button className="btn btn-lime" type="button" style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}
-              onClick={() => onDone({ svc, country, city: city.trim(), startScan: true })}>
-              Measure this place
-            </button>
-            <button type="button" style={{ marginTop: 10, width: '100%', background: 'none', border: 'none', color: 'var(--txt3)', cursor: 'pointer' }}
-              onClick={() => onDone({ svc, country, city: city.trim(), startScan: false })}>
-              I’ll look around first
-            </button>
+            <input id="onboard-city" className="inp" value={city} onChange={e => setCity(e.target.value)} placeholder={cityHint} style={{ width: '100%' }} />
+            {preview ? (
+              <button className="btn btn-lime" type="button" style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}
+                onClick={() => onDone({ startScan: false })}>
+                Back to the sample desk
+              </button>
+            ) : (
+              <>
+                <button className="btn btn-lime" type="button" style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}
+                  onClick={() => onDone({ svc, country, city: city.trim(), startScan: true })}>
+                  Run my first scan
+                </button>
+                <button type="button" style={{ marginTop: 10, width: '100%', background: 'none', border: 'none', color: 'var(--txt3)', cursor: 'pointer' }}
+                  onClick={() => onDone({ svc, country, city: city.trim(), startScan: false })}>
+                  I’ll look around first
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

@@ -88,7 +88,7 @@ export default function LandingPage({ onSignup, onLogin, onPreview }) {
                 Send the proof.<br />Not a guess.
               </h1>
               <p style={{ fontSize: 18, lineHeight: 1.55, color: 'var(--txt2)', maxWidth: 520, marginBottom: 22 }}>
-                Zenvylo finds real nearby businesses, measures their websites, and keeps the result. When something changes — the site goes down, booking appears, HTTPS shows up — you see it. Give the desk a goal, like dentists in one city with no booking link, and it keeps only the sites the check confirms. Each prospect gets a page the owner can open and check.
+                Pick what you sell and a place. Zenvylo finds real nearby businesses, measures their websites, and keeps the result. You copy a proof link. The owner opens that page and checks the measurements. The next day, the desk shows what changed and which follow-ups you dated.
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button className="btn btn-lime btn-xl" onClick={() => go('hero')}>Start with 3 free scans</button>
@@ -135,7 +135,7 @@ export default function LandingPage({ onSignup, onLogin, onPreview }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
             {[
               ['01', 'Measure', 'OpenStreetMap for the businesses. Then a fetch of each site: HTTPS, mobile, speed, title, contact, booking, analytics. The score is math on those facts, weighted for what you sell.'],
-              ['02', 'Watch', 'Saved prospects can be measured again. Zenvylo diffs the two results and tells you what changed, in words you can check. Your follow-up dates sit on the same screen.'],
+              ['02', 'Watch', 'Come back the next day. A saved site can be measured again. A line appears only when the new measurement differs from the one you already have. Follow-up dates sit on the same screen.'],
               ['03', 'Prove', 'Copy a proof link. The owner sees the checks and a code. The code is a hash of the page, so an edited sentence no longer matches.'],
             ].map(([n, title, body]) => (
               <article key={n} className="card" style={{ padding: 22, background: 'var(--s1)' }}>
@@ -172,6 +172,7 @@ export default function LandingPage({ onSignup, onLogin, onPreview }) {
               </article>
             ))}
           </div>
+          <button className="btn btn-lime" style={{ marginTop: 16 }} onClick={() => go('pricing')}>Start with the free plan</button>
           <p style={{ marginTop: 14, fontSize: 13, color: 'var(--txt3)' }}>
             Enterprise: email <a href={`mailto:${HELLO_EMAIL}`} style={{ textDecoration: 'underline' }}>{HELLO_EMAIL}</a>.
           </p>

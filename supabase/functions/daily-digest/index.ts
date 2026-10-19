@@ -12,30 +12,8 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { json, preflight } from "../_shared/http.ts";
 import { buildDailyDigest } from "../_shared/digest.js";
-
-function secretsMatch(got: string, expected: string): boolean {
-  const a = new TextEncoder().encode(got);
-  const b = new TextEncoder().encode(expected);
-  if (a.length < 16 || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-  return diff === 0;
-}
-
-async function emailFreelancer(to: string, subject: string, text: string): Promise<boolean> {
-  const key = Deno.env.get("RESEND_API_KEY") || "";
-  const from = Deno.env.get("DIGEST_FROM") || "";
-  if (!key || !from || !to) return false;
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to: [to], subject, text }),
-  });
-  return res.ok;
-}
+import { secretsMatch } from "../_shared/cronAuth.js";
+import { emailFreelancer } from "../_shared/mail.js";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return preflight(req);
@@ -98,7 +76,13 @@ Deno.serve(async (req: Request) => {
     }
     noticed += 1;
 
-    if (profile.email && await emailFreelancer(profile.email, title, digest.text)) {
+    if (profile.email && await emailFreelancer({
+      to: profile.email,
+      subject: title,
+      text: digest.text,
+      key: Deno.env.get("RESEND_API_KEY") || "",
+      from: Deno.env.get("DIGEST_FROM") || "",
+    })) {
       emailed += 1;
     }
   }

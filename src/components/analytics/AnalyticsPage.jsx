@@ -7,7 +7,7 @@ const I = Icon
 export default function AnalyticsPage({ leads, clients, onNav }) {
   if(leads.length===0) return (
     <div style={{ textAlign:"center",padding:"100px 20px",color:"var(--txt2)" }}>
-      <I n="bar" s={44}/><p style={{ marginTop:16,fontSize:15 }}>Run searches to unlock analytics.</p>
+      <I n="bar" s={44}/><p style={{ marginTop:16,fontSize:15 }}>Run a scan to see stats here.</p>
     </div>
   );
   const byStatus={},bySvc={},byCountry={},bySat={};
@@ -38,7 +38,7 @@ export default function AnalyticsPage({ leads, clients, onNav }) {
 
   return (
     <div style={{overflowX:"hidden",minWidth:0}}>
-      <PageHeader title="Analytics" onBack={() => onNav("home")} onHome={() => onNav("home")} />
+      <PageHeader title="Stats" onBack={() => onNav("home")} onHome={() => onNav("home")} />
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(135px,1fr))",gap:10,marginBottom:18 }}>
         {[
           {l:"Potential MRR",v:"$"+totalMRR.toLocaleString(),c:"var(--lime)"},

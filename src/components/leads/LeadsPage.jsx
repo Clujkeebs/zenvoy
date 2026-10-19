@@ -20,6 +20,10 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported,
   const [bulkDate,  setBulkDate]  = useState("");
   const [showImport,setShowImport]= useState(false);
   const [view, setView] = useState('list');
+  const [proofHint, setProofHint] = useState(() => {
+    try { return localStorage.getItem('zv_proof_hint') !== '1' }
+    catch { return true }
+  });
 
   /* Bulk actions. At 40+ leads, updating status one card at a time is the
      single most tedious thing in the app — this makes a scan's worth of
@@ -61,9 +65,20 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported,
           <button className={"btn "+(view==="board"?"btn-lime":"btn-ghost")} onClick={()=>setView(view==="board"?"list":"board")}>
             <I n="layers" s={14}/>{view==="board"?"List":"Pipeline"}
           </button>
-          <button className="btn btn-lime" onClick={onSearch}><I n="search" s={14}/>New Search</button>
+          <button className="btn btn-lime" onClick={onSearch}><I n="search" s={14}/>New scan</button>
         </div>
       </div>
+
+      {leads.length > 0 && proofHint && (
+        <p style={{ fontSize:13, color:"var(--txt2)", margin:"-6px 0 14px", lineHeight:1.5 }}>
+          Open a lead and choose Proof link. Paste that page to the business. They do not need an account.
+          {' '}
+          <button type="button" className="btn btn-ghost" style={{ fontSize:12 }} onClick={() => {
+            try { localStorage.setItem('zv_proof_hint', '1') } catch { /* the hint can stay */ }
+            setProofHint(false)
+          }}>Got it</button>
+        </p>
+      )}
 
       <div style={{ display:"flex",gap:7,marginBottom:11,flexWrap:"wrap",alignItems:"center" }}>
         <input className="inp" placeholder="Search leads…" value={q} onChange={e=>setQ(e.target.value)} style={{ flex:"1 1 160px",minWidth:140,fontSize:13 }}/>
@@ -164,9 +179,9 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported,
         ? <div className="empty-state">
             <div className="empty-icon"><I n="target" s={32} c="var(--lime)"/></div>
             <h3 style={{ fontFamily:"var(--fh)",fontWeight:900,fontSize:20 }}>No leads yet</h3>
-            <p style={{ color:"var(--txt2)",fontSize:14,maxWidth:320,lineHeight:1.7 }}>Hit <strong style={{color:"var(--txt)"}}>New Search</strong> to discover local businesses that need your service — ranked by opportunity score.</p>
+            <p style={{ color:"var(--txt2)",fontSize:14,maxWidth:320,lineHeight:1.7 }}>Choose <strong style={{color:"var(--txt)"}}>New scan</strong>. Zenvylo finds businesses in that place and measures their websites. Then open a lead and choose Proof link.</p>
             <div style={{ display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:4 }}>
-              <button className="btn btn-lime" style={{ padding:"12px 28px",fontSize:15 }} onClick={onSearch}><I n="search" s={16}/>Find My First Leads</button>
+              <button className="btn btn-lime" style={{ padding:"12px 28px",fontSize:15 }} onClick={onSearch}><I n="search" s={16}/>New scan</button>
               <button className="btn btn-ghost" style={{ padding:"12px 22px",fontSize:15 }} onClick={()=>setShowImport(true)}><I n="plus" s={16}/>Import a list</button>
             </div>
           </div>
