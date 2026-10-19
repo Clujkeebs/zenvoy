@@ -2,8 +2,9 @@
  *
  * The repo used to mix zenvylo.com and zenvylo.app. The owner calls the
  * product zenvylo.app, and the only live product URL already in the app
- * (the affiliate referral link) pointed at zenvylo.app. Everything public
- * now hangs off this file.
+ * (the affiliate referral link) pointed at zenvylo.app. GitHub's repository
+ * homepage field says zenvoy.app. The product domain stays zenvylo.app
+ * until that is changed on purpose. Everything public hangs off this file.
  * ─────────────────────────────────────────────────────────────────────── */
 
 export const SITE_ORIGIN = 'https://zenvylo.app'

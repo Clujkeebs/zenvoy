@@ -418,6 +418,26 @@ GETTING TO THE NEXT TIER: [how to charge 30% more]
 Under 220 words. Be explicit that these are informed estimates.
 ${NO_FABRICATION}`,
   }),
+
+  // Rewrite a draft the app already built from measured findings.
+  // The model may change tone. It may not add facts or send anything.
+  desk_draft: p => ({
+    maxTokens: 500,
+    prompt: `Rewrite this follow-up so it sounds like a person wrote it. Change wording only.
+
+Business: ${s(p.business, 80)}
+Website: ${s(p.website, 140)}
+${evidenceBlock(p)}
+
+Draft to rewrite:
+${block(p.draft, 1200)}
+
+Rules:
+- Do not add measurements, percentages, prices, or results that are not in the verified findings.
+- Do not say the message has been sent.
+- Return only the rewritten draft.
+${NO_FABRICATION}`,
+  }),
 }
 
 export const TASKS = Object.keys(BUILDERS)

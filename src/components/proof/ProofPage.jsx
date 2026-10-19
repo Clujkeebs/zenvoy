@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { decodeProof, verifyProof } from '../../utils/proof'
 import { OSM_ATTRIBUTION, SITE_ORIGIN } from '../../constants/site'
+import Logo from '../brand/Logo'
 
 function tokenFromLocation() {
   const hash = window.location.hash.replace(/^#/, '')
@@ -35,9 +36,8 @@ export default function ProofPage() {
   return (
     <div className="pub" style={{ padding: '28px 16px 64px' }}>
       <header style={{ maxWidth: 760, margin: '0 auto 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <a href={SITE_ORIGIN} style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'inherit' }}>
-          <span className="stamp">Z</span>
-          <span className="wordmark">Zenvylo</span>
+        <a href={SITE_ORIGIN} style={{ color: 'inherit' }}>
+          <Logo variant="on-light" size={28} />
         </a>
         <a href={SITE_ORIGIN} style={{ fontSize: 13 }}>Make your own</a>
       </header>

@@ -30,6 +30,8 @@ import AdminDashboard from './components/admin/AdminDashboard'
 import AffiliateDashboard from './components/affiliate/AffiliateDashboard'
 import ProofPage from './components/proof/ProofPage'
 import CookieNotice from './components/layout/CookieNotice'
+import AgentDesk from './components/agent/AgentDesk'
+import Logo from './components/brand/Logo'
 import { SAMPLE_USER, SAMPLE_LEADS, SAMPLE_CLIENTS } from './fixtures/sampleDesk'
 
 function isProofPath(path = window.location.pathname) {
@@ -58,6 +60,7 @@ export default function App() {
   const [clients,     setClients]     = useState([])
   const [toast,       setToast]       = useState(null)
   const [showSearch,  setShowSearch]  = useState(false)
+  const [searchSeed,  setSearchSeed]  = useState('')
   const [showBoard,   setShowBoard]   = useState(false)
   const [upgradeFor,  setUpgradeFor]  = useState(null)
   const [showMore,    setShowMore]    = useState(false)
@@ -233,11 +236,17 @@ export default function App() {
     setUser(null); setLeads([]); setClients([]); setTab("home")
   }, [])
 
-  const doneBoard = useCallback(() => {
+  const doneBoard = useCallback((extra = {}) => {
     Analytics.onboardingCompleted()
-    const u = { ...user, onboarded: true }
-    DB.updateOwnProfile({ onboarded: true }) // fire-and-forget
-    setUser(u); setShowBoard(false)
+    const patch = { onboarded: true }
+    if (extra.svc) patch.svc = extra.svc
+    if (extra.country) patch.country = extra.country
+    const u = { ...user, ...patch }
+    DB.updateOwnProfile(patch)
+    setUser(u)
+    setShowBoard(false)
+    if (extra.city) setSearchSeed(extra.city)
+    if (extra.startScan) setShowSearch(true)
   }, [user])
 
   // ─── Lead / Client mutations ─────────────────────────
@@ -339,6 +348,7 @@ export default function App() {
   const NAV = useMemo(() => {
     const items = [
       { id: "home",         icon: "home",      label: "Today" },
+      { id: "agent",        icon: "ai",        label: "Agent" },
       { id: "leads",        icon: "target",    label: "Leads" + (leads.length ? " (" + leads.length + ")" : "") },
       { id: "clients",      icon: "users",     label: "Clients" + (clients.length ? " (" + clients.length + ")" : "") },
       { id: "tools",        icon: "tool",      label: "Tools" },
@@ -385,13 +395,8 @@ export default function App() {
       <VercelAnalytics />
       <div className="app-shell">
         <aside className="app-sidebar">
-        <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "4px 8px", marginBottom: 16 }}>
-          <div style={{ width: 30, height: 30, background: "var(--lime)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <I n="target" s={15} c="#0c0e13" />
-          </div>
-          <span className="sidebar-logo-text" style={{ fontFamily: "var(--fh)", fontWeight: 900, fontSize: 15, letterSpacing: "-.02em", overflow: "hidden", whiteSpace: "nowrap" }}>
-            Zen<span style={{ color: "var(--lime)" }}>vylo</span>
-          </span>
+        <div style={{ display: "flex", alignItems: "center", padding: "4px 8px", marginBottom: 16 }}>
+          <Logo variant="on-dark" size={30} />
         </div>
 
         {trialActive && (
@@ -477,6 +482,7 @@ export default function App() {
       <main className="app-main">
         <div key={tab} className="fu" style={{ minHeight: "100%", animationDuration: ".18s" }}>
         {tab === "home"         && <Home user={user} leads={leads} clients={clients} onSearch={openSearch} onNav={setTab} onUpdateUser={updateProfile} onUpdateLead={updLead} />}
+        {tab === "agent"        && <AgentDesk user={user} leads={leads} onSave={handleLeads} onUpdateLead={updLead} onUpgrade={handleUpgrade} />}
         {tab === "leads"        && <LeadsPage user={user} leads={leads} onUpdate={updLead} onDelete={delLead} onImported={addLeads} onSearch={openSearch} onUpgrade={handleUpgrade} onNav={setTab} />}
         {tab === "clients"      && <ClientsPage clients={clients} leads={leads} onAdd={addClient} onUpdate={updClient} onDelete={delClient} onNav={setTab} />}
         {tab === "tools"        && <ToolsPage user={user} onUpgrade={handleUpgrade} onNav={setTab} />}
@@ -498,7 +504,7 @@ export default function App() {
       <button className="mob-fab" onClick={openSearch}><I n="search" s={16} c="#0c0e13" />Scan</button>
 
       <nav className="bottom-nav">
-        {[{id:"home",icon:"home",label:"Home"},{id:"leads",icon:"target",label:"Leads"},{id:"tools",icon:"tool",label:"Tools"},{id:"analytics",icon:"bar",label:"Analytics"}].map(item => (
+        {[{id:"home",icon:"home",label:"Today"},{id:"agent",icon:"ai",label:"Agent"},{id:"leads",icon:"target",label:"Leads"},{id:"analytics",icon:"bar",label:"Stats"}].map(item => (
           <button key={item.id} className={"bnav-btn" + (tab === item.id ? " on" : "")} onClick={() => setTab(item.id)}>
             <I n={item.icon} s={item.id === tab ? 20 : 18} c={tab === item.id ? "var(--lime)" : "var(--txt3)"} /><span>{item.label}</span>
           </button>
@@ -549,7 +555,7 @@ export default function App() {
         </div>
       )}
 
-      {showSearch && <SearchModal user={user} onClose={() => setShowSearch(false)} onDone={handleLeads} onUpgrade={handleUpgrade} />}
+      {showSearch && <SearchModal user={user} initialCity={searchSeed} onClose={() => setShowSearch(false)} onDone={handleLeads} onUpgrade={handleUpgrade} />}
       {showBoard && <OnboardOverlay onDone={doneBoard} />}
       {upgradeFor && <UpgradeModal feature={upgradeFor.feature} requiredPlan={upgradeFor.plan} onClose={() => setUpgradeFor(null)} onGoSettings={() => { setTab("settings"); setUpgradeFor(null) }} />}
       <Toast msg={toast} />

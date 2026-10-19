@@ -18,7 +18,10 @@ Zenvylo does three things that require a product, not a conversation:
    page loaded at all.
 2. It stores that measurement on the lead. A later re-check diffs the two
    fetches and lists what changed, citing both observations.
-3. It builds a proof page. The link contains the measurements. The code on
+3. The desk agent plans a scan from a goal you type, keeps only businesses
+   whose measured findings match, answers questions from saved leads, and
+   drafts follow-ups that quote those findings. It does not send email.
+4. It builds a proof page. The link contains the measurements. The code on
    the page is a hash of them. Editing the link makes the code stop matching.
 
 Scores are computed in code from those checks, weighted for the service you
