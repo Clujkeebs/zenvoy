@@ -1,9 +1,12 @@
 -- Proof desk: remember measurements, and keep the fields the app already writes.
 --
+-- Applied live as version 20261019024229 (name proof_desk_watch).
+-- The version prefix matches schema_migrations so this file is not run again.
+--
 -- lat/lon, OSM tags and benchmark were used by the client and the
 -- local-benchmark function but were never added in a committed migration.
 -- watch_log stores the diff between measurements so the Today desk can say
--- what changed. Safe to run more than once. Do not apply until reviewed.
+-- what changed. Safe to run more than once.
 
 ALTER TABLE public.leads
   ADD COLUMN IF NOT EXISTS lat            DOUBLE PRECISION,
