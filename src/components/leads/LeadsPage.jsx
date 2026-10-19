@@ -6,7 +6,7 @@ import ImportModal from './ImportModal'
 import { STATUSES, STATUS_COLORS, SERVICES } from '../../constants/services'
 import { canAI } from '../../constants/plans'
 import { recordTouch, closeDeal } from '../../utils/outreach'
-import { csvExport, scoreColor, leadTime, fmtDate } from '../../utils/helpers'
+import { csvExport, crmExport, scoreColor, leadTime, fmtDate } from '../../utils/helpers'
 const I = Icon
 
 export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported, onSearch, onUpgrade, onNav }) {
@@ -57,6 +57,7 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported,
             <I n="plus" s={14}/>Import list
           </button>
           {leads.length>0 && <button className="btn btn-ghost" onClick={()=>csvExport(leads)}><I n="download" s={14}/>Export CSV</button>}
+          {leads.length>0 && <button className="btn btn-ghost" onClick={()=>crmExport(leads)}><I n="download" s={14}/>Export for a CRM</button>}
           <button className={"btn "+(view==="board"?"btn-lime":"btn-ghost")} onClick={()=>setView(view==="board"?"list":"board")}>
             <I n="layers" s={14}/>{view==="board"?"List":"Pipeline"}
           </button>
@@ -186,7 +187,7 @@ export default function LeadsPage({ user, leads, onUpdate, onDelete, onImported,
                       </div>
                     </div>
                   </div>
-                  <LeadCard lead={lead} userName={user.name} userPlan={user.plan}
+                  <LeadCard lead={lead} userName={user.name} userPlan={user.plan} ownerId={user.sample ? undefined : user.id}
                     open={openId===lead.id} onToggle={()=>setOpenId(openId===lead.id?null:lead.id)}
                     onUpdate={onUpdate} onDelete={onDelete} onUpgrade={onUpgrade}/>
                 </div>

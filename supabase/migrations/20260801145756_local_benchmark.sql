@@ -1,0 +1,15 @@
+-- Already recorded on project tyhhtbtxdwxjcziwmrpx as version 20260801145756.
+--
+-- The original statements were run from the SQL editor and were not saved in
+-- this repo. This file exists so local migration history matches the live
+-- schema_migrations table. `supabase db push` skips a version that is already
+-- recorded, so these comments are not executed against production.
+--
+-- Do not add schema here. Inventing the original statements would make a fresh
+-- database disagree with production, and editing this file does not change a
+-- database that already recorded the version.
+--
+-- Supabase's own guidance for a history row you must not re-run is
+-- `supabase migration repair`, which edits the history table without running
+-- SQL. That command needs a linked database. This placeholder is the matching
+-- local file, so push can see the version without a repair.

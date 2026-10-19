@@ -198,6 +198,7 @@ export default function LandingPage({ onSignup, onLogin, onPreview }) {
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <a href="/blog/">Blog</a>
+          <a href="/audit.html">Mini audit</a>
           <a href="/legal/terms.html">Terms</a>
           <a href="/legal/privacy.html">Privacy</a>
           <a href="/legal/cookies.html">Cookies</a>

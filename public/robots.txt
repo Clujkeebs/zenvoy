@@ -4,6 +4,7 @@
 User-agent: *
 Allow: /
 Allow: /blog/
+Allow: /audit.html
 Allow: /legal/
 Disallow: /api/
 Disallow: /functions/

@@ -6,3 +6,12 @@
 
 [functions.recheck-saved]
 verify_jwt = false
+
+# Called by pg_cron with the same RECHECK_CRON_SECRET header.
+[functions.daily-digest]
+verify_jwt = false
+
+# A business owner opens a proof link with no account.
+# The function checks the proof hash itself.
+[functions.audit-interest]
+verify_jwt = false
