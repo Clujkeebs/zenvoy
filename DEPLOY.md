@@ -92,7 +92,7 @@ supabase functions deploy audit-interest
 
 `audit-interest` and `daily-digest` and `recheck-saved` are called without a user JWT. `supabase/config.toml` sets `verify_jwt = false` for those three. Each one still checks its own credential: the proof hash, or `RECHECK_CRON_SECRET`.
 
-Leave the Stripe functions as they are unless you are already redeploying the whole set:
+Stripe stays as it is. Do not change price IDs. If you redeploy these functions with the rest, `config.toml` already turns JWT checks off for the webhook, because Stripe cannot send one. The function still rejects a body whose Stripe signature does not match.
 
 ```bash
 supabase functions deploy stripe-checkout
@@ -124,3 +124,10 @@ npm run smoke
 The command signs in (or signs up), measures the site, saves a lead, checks a proof document, re-checks that lead, and calls the desk agent. A free account that receives HTTP 402 from the desk agent is a pass: the plan gate worked. The command deletes the smoke lead when it can.
 
 If none of the four `SMOKE_` values are set, the command skips and exits 0. If only some are set, it exits 1.
+
+## 8. Things that are already part of a working project
+
+- The hardening migration in the old deploy notes was renamed. The recorded version is `20260730222009_security_hardening.sql`. Do not look for `20260729000000_hardening.sql`.
+- Profile photos need a public Storage bucket named `avatars`. The policies are in the hardening migration. Skip this if the bucket is already there.
+- The site is a single-page app. The host must serve `index.html` for unknown paths. Vercel does that for this Vite project.
+- `npm run check` runs lint, tests, and the production build.
